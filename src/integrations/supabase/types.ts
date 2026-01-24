@@ -96,6 +96,35 @@ export type Database = {
           },
         ]
       }
+      chat_read_status: {
+        Row: {
+          id: string
+          last_read_at: string
+          meeting_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_read_at?: string
+          meeting_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_read_at?: string
+          meeting_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_read_status_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_participants: {
         Row: {
           id: string

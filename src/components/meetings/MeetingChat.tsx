@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,6 +32,7 @@ interface MeetingChatProps {
 export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChatProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { markAsRead } = useUnreadMessages();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -102,6 +104,9 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
     }
 
     fetchMessages();
+    
+    // Mark messages as read when entering chat
+    markAsRead(meetingId);
 
     // Subscribe to realtime messages
     const channel = supabase
@@ -156,7 +161,7 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [meetingId, user, canChat, fetchMessages, fetchProfiles, profiles]);
+  }, [meetingId, user, canChat, fetchMessages, fetchProfiles, profiles, markAsRead]);
 
   useEffect(() => {
     scrollToBottom();

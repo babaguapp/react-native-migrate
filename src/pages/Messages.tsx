@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, MessageCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -14,7 +16,6 @@ interface ChatPreview {
   imageUrl: string | null;
   lastMessage: string | null;
   lastMessageAt: string | null;
-  unreadCount?: number;
 }
 
 export default function Messages() {
@@ -22,6 +23,7 @@ export default function Messages() {
   const navigate = useNavigate();
   const [chats, setChats] = useState<ChatPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { getUnreadCount } = useUnreadMessages();
 
   useEffect(() => {
     if (!user) return;
@@ -157,38 +159,51 @@ export default function Messages() {
           </div>
         ) : (
           <div className="space-y-1">
-            {chats.map((chat) => (
-              <button
-                key={chat.meetingId}
-                onClick={() => handleChatClick(chat.meetingId)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors text-left"
-              >
-                {/* Avatar - meeting image */}
-                <Avatar className="h-14 w-14 flex-shrink-0">
-                  <AvatarImage src={chat.imageUrl || undefined} className="object-cover" />
-                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
-                    {chat.activityName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-
-                {/* Chat info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-semibold text-foreground truncate">
-                      {chat.activityName}
-                    </h3>
-                    {chat.lastMessageAt && (
-                      <span className="text-xs text-muted-foreground flex-shrink-0">
-                        {formatTime(chat.lastMessageAt)}
-                      </span>
+            {chats.map((chat) => {
+              const unreadCount = getUnreadCount(chat.meetingId);
+              
+              return (
+                <button
+                  key={chat.meetingId}
+                  onClick={() => handleChatClick(chat.meetingId)}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors text-left"
+                >
+                  {/* Avatar - meeting image */}
+                  <div className="relative">
+                    <Avatar className="h-14 w-14 flex-shrink-0">
+                      <AvatarImage src={chat.imageUrl || undefined} className="object-cover" />
+                      <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
+                        {chat.activityName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {unreadCount > 0 && (
+                      <Badge 
+                        className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold bg-destructive text-destructive-foreground border-2 border-background"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground truncate mt-0.5">
-                    {truncateMessage(chat.lastMessage)}
-                  </p>
-                </div>
-              </button>
-            ))}
+
+                  {/* Chat info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className={`font-semibold truncate ${unreadCount > 0 ? 'text-foreground' : 'text-foreground'}`}>
+                        {chat.activityName}
+                      </h3>
+                      {chat.lastMessageAt && (
+                        <span className="text-xs text-muted-foreground flex-shrink-0">
+                          {formatTime(chat.lastMessageAt)}
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-sm truncate mt-0.5 ${unreadCount > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                      {truncateMessage(chat.lastMessage)}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, RefreshCw, MapPin } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { MeetingCard } from '@/components/meetings/MeetingCard';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,10 @@ export default function Meetings() {
   } = useGeolocation();
 
   const requestNotificationPermission = async () => {
+    // In native (Capacitor) builds, use the PushNotifications plugin flow.
+    // Calling the Web Notifications API in Android WebView can lead to crashes on some devices.
+    if (Capacitor.isNativePlatform()) return;
+
     if ('Notification' in window) {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {

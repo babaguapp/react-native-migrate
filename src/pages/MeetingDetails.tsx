@@ -528,7 +528,7 @@ const MeetingDetails = () => {
                   </button>
                 ))}
 
-              {meeting.participants.filter((p) => p.status === "confirmed").length === 0 && (
+              {meeting.participants.filter((p) => p.status === "accepted").length === 0 && (
                 <p className="text-muted-foreground text-center py-6">
                   Brak potwierdzonych uczestników
                 </p>

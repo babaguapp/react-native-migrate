@@ -119,6 +119,26 @@ export default function CreateMeeting() {
 
     setIsLoading(true);
     try {
+      // Geocode the city to get coordinates
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+
+      try {
+        const { data: geocodeData, error: geocodeError } = await supabase.functions.invoke('geocode', {
+          body: { city: values.city.trim() },
+        });
+
+        if (!geocodeError && geocodeData?.latitude && geocodeData?.longitude) {
+          latitude = geocodeData.latitude;
+          longitude = geocodeData.longitude;
+        } else {
+          console.warn('Geocoding failed:', geocodeError || 'No coordinates returned');
+        }
+      } catch (geoError) {
+        console.warn('Geocoding error:', geoError);
+        // Continue without coordinates - meeting will still be created
+      }
+
       const { error } = await supabase.from('meetings').insert({
         creator_id: user.id,
         activity_id: values.activity_id,
@@ -127,6 +147,8 @@ export default function CreateMeeting() {
         max_participants: values.max_participants,
         gender_preference: values.gender_preference,
         description: values.description?.trim() || null,
+        latitude,
+        longitude,
       });
 
       if (error) throw error;

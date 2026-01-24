@@ -343,6 +343,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_distance: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
+      }
       create_notification: {
         Args: {
           p_meeting_id?: string
@@ -353,6 +357,25 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      get_meetings_within_radius: {
+        Args: { radius_km?: number; user_lat: number; user_lon: number }
+        Returns: {
+          activity_id: string
+          city: string
+          created_at: string
+          creator_id: string
+          description: string
+          distance_km: number
+          gender_preference: string
+          id: string
+          image_url: string
+          latitude: number
+          longitude: number
+          max_participants: number
+          meeting_date: string
+          updated_at: string
+        }[]
       }
       is_meeting_member: {
         Args: { _meeting_id: string; _user_id: string }

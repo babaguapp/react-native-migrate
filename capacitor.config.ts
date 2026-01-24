@@ -36,4 +36,11 @@ const config: CapacitorConfig = {
   }
 };
 
+// Note: After syncing, you'll need to configure:
+// iOS: Add NSLocationWhenInUseUsageDescription to Info.plist
+// Android: Add <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> to AndroidManifest.xml
+// Push Notifications require additional setup:
+// iOS: Enable Push Notifications capability in Xcode
+// Android: Add google-services.json from Firebase Console
+
 export default config;

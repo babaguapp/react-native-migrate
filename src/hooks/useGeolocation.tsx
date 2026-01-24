@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Geolocation, Position } from '@capacitor/geolocation';
 
 interface GeolocationState {
   latitude: number | null;
@@ -34,6 +36,8 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     permissionDenied: false,
   });
 
+  const isNative = Capacitor.isNativePlatform();
+
   // Load cached location on mount
   useEffect(() => {
     try {
@@ -53,7 +57,79 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     }
   }, []);
 
-  const requestLocation = useCallback(() => {
+  // Native Capacitor geolocation
+  const requestNativeLocation = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      // Check permissions first
+      let permStatus = await Geolocation.checkPermissions();
+
+      if (permStatus.location === 'prompt' || permStatus.coarseLocation === 'prompt') {
+        permStatus = await Geolocation.requestPermissions();
+      }
+
+      if (permStatus.location === 'denied' && permStatus.coarseLocation === 'denied') {
+        setState(prev => ({
+          ...prev,
+          error: 'Dostęp do lokalizacji został zablokowany',
+          loading: false,
+          permissionDenied: true,
+        }));
+        return;
+      }
+
+      const position: Position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy,
+        timeout,
+        maximumAge,
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      // Cache location
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          latitude,
+          longitude,
+          timestamp: Date.now(),
+        }));
+      } catch (e) {
+        console.warn('Failed to cache location:', e);
+      }
+
+      setState({
+        latitude,
+        longitude,
+        error: null,
+        loading: false,
+        permissionDenied: false,
+      });
+    } catch (error: any) {
+      console.error('Native geolocation error:', error);
+      let errorMessage = 'Nie udało się pobrać lokalizacji';
+      let permissionDenied = false;
+
+      if (error?.message?.includes('denied') || error?.message?.includes('permission')) {
+        errorMessage = 'Dostęp do lokalizacji został zablokowany';
+        permissionDenied = true;
+      } else if (error?.message?.includes('unavailable')) {
+        errorMessage = 'Informacja o lokalizacji jest niedostępna';
+      } else if (error?.message?.includes('timeout')) {
+        errorMessage = 'Upłynął limit czasu pobierania lokalizacji';
+      }
+
+      setState(prev => ({
+        ...prev,
+        error: errorMessage,
+        loading: false,
+        permissionDenied,
+      }));
+    }
+  }, [enableHighAccuracy, timeout, maximumAge]);
+
+  // Web browser geolocation
+  const requestWebLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setState(prev => ({
         ...prev,
@@ -120,6 +196,15 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     );
   }, [enableHighAccuracy, timeout, maximumAge]);
 
+  // Main request function - uses native or web based on platform
+  const requestLocation = useCallback(() => {
+    if (isNative) {
+      requestNativeLocation();
+    } else {
+      requestWebLocation();
+    }
+  }, [isNative, requestNativeLocation, requestWebLocation]);
+
   // Auto-request on mount if enabled
   useEffect(() => {
     if (autoRequest && !state.latitude && !state.longitude) {
@@ -160,6 +245,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
 
   return {
     ...state,
+    isNative,
     requestLocation,
     clearLocation,
     setManualLocation,

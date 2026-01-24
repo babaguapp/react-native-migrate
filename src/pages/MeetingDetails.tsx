@@ -79,7 +79,7 @@ const MeetingDetails = () => {
 
   const isCreator = user?.id === meeting?.creator_id;
   const confirmedParticipants =
-    meeting?.participants.filter((p) => p.status === "confirmed").length || 0;
+    meeting?.participants.filter((p) => p.status === "accepted").length || 0;
   const pendingParticipants =
     meeting?.participants.filter((p) => p.status === "pending").length || 0;
 
@@ -505,7 +505,7 @@ const MeetingDetails = () => {
 
               {/* Confirmed Participants */}
               {meeting.participants
-                .filter((p) => p.status === "confirmed")
+                .filter((p) => p.status === "accepted")
                 .map((participant) => (
                   <button
                     key={participant.user_id}
@@ -540,7 +540,7 @@ const MeetingDetails = () => {
             <MeetingChat 
               meetingId={meeting.id}
               isCreator={isCreator}
-              isParticipant={meeting.participants.some(p => p.user_id === user?.id && p.status === "confirmed")}
+              isParticipant={meeting.participants.some(p => p.user_id === user?.id && p.status === "accepted")}
             />
           </TabsContent>
         </Tabs>

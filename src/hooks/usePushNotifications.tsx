@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PushNotificationState {
   token: string | null;
@@ -21,7 +22,61 @@ export function usePushNotifications() {
 
   const isNative = Capacitor.isNativePlatform();
 
-  const registerPushNotifications = useCallback(async () => {
+  // Save token to database
+  const saveTokenToDatabase = useCallback(async (token: string, userId: string) => {
+    const platform = Capacitor.getPlatform() as 'ios' | 'android' | 'web';
+    
+    try {
+      // Check if token already exists
+      const { data: existing } = await supabase
+        .from('device_tokens')
+        .select('id, is_active')
+        .eq('user_id', userId)
+        .eq('token', token)
+        .single();
+
+      if (existing) {
+        // Reactivate if inactive
+        if (!existing.is_active) {
+          await supabase
+            .from('device_tokens')
+            .update({ is_active: true, updated_at: new Date().toISOString() })
+            .eq('id', existing.id);
+        }
+      } else {
+        // Insert new token
+        await supabase
+          .from('device_tokens')
+          .insert({
+            user_id: userId,
+            token,
+            platform,
+            device_name: `${platform} device`,
+          });
+      }
+      
+      console.log('Token saved to database');
+    } catch (error) {
+      console.error('Error saving token to database:', error);
+    }
+  }, []);
+
+  // Deactivate token in database
+  const deactivateToken = useCallback(async (token: string, userId: string) => {
+    try {
+      await supabase
+        .from('device_tokens')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('token', token);
+      
+      console.log('Token deactivated in database');
+    } catch (error) {
+      console.error('Error deactivating token:', error);
+    }
+  }, []);
+
+  const registerPushNotifications = useCallback(async (userId?: string) => {
     if (!isNative) {
       console.log('Push notifications are only available on native platforms');
       return;
@@ -65,11 +120,18 @@ export function usePushNotifications() {
     if (!isNative) return;
 
     // On success, we should be able to receive notifications
-    const registrationListener = PushNotifications.addListener('registration', (token: Token) => {
-      console.log('Push registration success, token: ' + token.value);
+    const registrationListener = PushNotifications.addListener('registration', async (tokenData: Token) => {
+      console.log('Push registration success, token: ' + tokenData.value);
+      
+      // Get current user and save token
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await saveTokenToDatabase(tokenData.value, user.id);
+      }
+      
       setState(prev => ({
         ...prev,
-        token: token.value,
+        token: tokenData.value,
         isRegistered: true,
         loading: false,
         error: null,
@@ -119,12 +181,17 @@ export function usePushNotifications() {
       notificationReceivedListener.then(l => l.remove());
       notificationActionListener.then(l => l.remove());
     };
-  }, [isNative]);
+  }, [isNative, saveTokenToDatabase]);
 
-  const unregisterPushNotifications = useCallback(async () => {
+  const unregisterPushNotifications = useCallback(async (userId?: string) => {
     if (!isNative) return;
 
     try {
+      // Deactivate token in database before unregistering
+      if (state.token && userId) {
+        await deactivateToken(state.token, userId);
+      }
+      
       await PushNotifications.unregister();
       setState({
         token: null,
@@ -136,7 +203,7 @@ export function usePushNotifications() {
     } catch (error) {
       console.error('Error unregistering push notifications:', error);
     }
-  }, [isNative]);
+  }, [isNative, state.token, deactivateToken]);
 
   return {
     ...state,

@@ -13,6 +13,7 @@ import {
   Share2,
   UserPlus,
   Crown,
+  LogOut,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
@@ -246,6 +247,33 @@ const MeetingDetails = () => {
       toast({
         title: "Błąd",
         description: "Nie udało się dołączyć do spotkania",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLeaveMeeting = async () => {
+    if (!meeting || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from("meeting_participants")
+        .delete()
+        .eq("meeting_id", meeting.id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Opuściłeś spotkanie",
+        description: "Możesz dołączyć ponownie w każdej chwili",
+      });
+      fetchMeetingDetails();
+    } catch (error) {
+      console.error("Error leaving meeting:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się opuścić spotkania",
         variant: "destructive",
       });
     }
@@ -558,13 +586,31 @@ const MeetingDetails = () => {
                 Przeglądaj kandydatów ({pendingParticipants})
               </Button>
             ) : isAcceptedParticipant ? (
-              <Button 
-                className="w-full py-6 text-base font-semibold rounded-xl"
-                variant="default"
-                disabled
-              >
-                ✓ Jesteś uczestnikiem
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    className="w-full py-6 text-base font-semibold rounded-xl"
+                    variant="outline"
+                  >
+                    <LogOut className="h-5 w-5 mr-2" />
+                    Opuść spotkanie
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Opuścić spotkanie?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Czy na pewno chcesz opuścić to spotkanie? Będziesz musiał ponownie wysłać zgłoszenie, aby dołączyć.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleLeaveMeeting}>
+                      Opuść
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             ) : hasUserApplied ? (
               <Button 
                 className="w-full py-6 text-base font-semibold rounded-xl"

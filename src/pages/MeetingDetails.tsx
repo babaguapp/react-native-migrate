@@ -12,7 +12,9 @@ import {
   Users,
   Share2,
   UserPlus,
+  Crown,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import {
@@ -26,6 +28,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+interface Participant {
+  user_id: string;
+  status: string;
+  profile: {
+    full_name: string;
+    username: string;
+    avatar_url: string | null;
+  };
+}
 
 interface MeetingDetails {
   id: string;
@@ -49,10 +61,7 @@ interface MeetingDetails {
     username: string;
     avatar_url: string | null;
   };
-  participants: {
-    user_id: string;
-    status: string;
-  }[];
+  participants: Participant[];
 }
 
 const MeetingDetails = () => {
@@ -97,7 +106,12 @@ const MeetingDetails = () => {
           ),
           participants:meeting_participants(
             user_id,
-            status
+            status,
+            profile:profiles!meeting_participants_user_id_fkey(
+              full_name,
+              username,
+              avatar_url
+            )
           )
         `
         )
@@ -458,10 +472,56 @@ const MeetingDetails = () => {
           </TabsContent>
 
           <TabsContent value="participants" className="flex-1 overflow-auto px-4 pb-4">
-            <div className="mt-4">
-              <p className="text-muted-foreground text-center py-8">
-                Lista uczestników będzie dostępna wkrótce
-              </p>
+            <div className="mt-4 space-y-3">
+              {/* Organizer */}
+              <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={meeting.creator.avatar_url || undefined} />
+                  <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                    {meeting.creator.full_name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{meeting.creator.full_name}</span>
+                    <Crown className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">@{meeting.creator.username}</span>
+                </div>
+                <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
+                  Organizator
+                </span>
+              </div>
+
+              {/* Confirmed Participants */}
+              {meeting.participants
+                .filter((p) => p.status === "confirmed")
+                .map((participant) => (
+                  <div
+                    key={participant.user_id}
+                    className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border"
+                  >
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={participant.profile.avatar_url || undefined} />
+                      <AvatarFallback className="bg-muted text-muted-foreground font-semibold">
+                        {participant.profile.full_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <span className="font-semibold">{participant.profile.full_name}</span>
+                      <p className="text-sm text-muted-foreground">@{participant.profile.username}</p>
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                      Uczestnik
+                    </span>
+                  </div>
+                ))}
+
+              {meeting.participants.filter((p) => p.status === "confirmed").length === 0 && (
+                <p className="text-muted-foreground text-center py-6">
+                  Brak potwierdzonych uczestników
+                </p>
+              )}
             </div>
           </TabsContent>
 

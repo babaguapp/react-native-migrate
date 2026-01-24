@@ -9,15 +9,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Calendar,
-  MapPin,
   Users,
-  User,
   Share2,
-  Edit3,
-  X,
-  Check,
-  Trash2,
-  Tag,
+  UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -76,6 +70,8 @@ const MeetingDetails = () => {
   const isCreator = user?.id === meeting?.creator_id;
   const confirmedParticipants =
     meeting?.participants.filter((p) => p.status === "confirmed").length || 0;
+  const pendingParticipants =
+    meeting?.participants.filter((p) => p.status === "pending").length || 0;
 
   useEffect(() => {
     fetchMeetingDetails();
@@ -211,16 +207,58 @@ const MeetingDetails = () => {
     }
   };
 
+  const handleJoinMeeting = async () => {
+    if (!meeting || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from("meeting_participants")
+        .insert({
+          meeting_id: meeting.id,
+          user_id: user.id,
+          status: "pending",
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Zgłoszenie wysłane",
+        description: "Czekaj na akceptację organizatora",
+      });
+      fetchMeetingDetails();
+    } catch (error) {
+      console.error("Error joining meeting:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się dołączyć do spotkania",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getGenderLabel = (preference: string) => {
     switch (preference) {
       case "female":
-        return "Tylko kobiety";
+        return "Dla Kobiet";
       case "male":
-        return "Tylko mężczyźni";
+        return "Dla Mężczyzn";
       default:
-        return "Wszyscy";
+        return "Dla Wszystkich";
     }
   };
+
+  const getGenderIcon = (preference: string) => {
+    switch (preference) {
+      case "female":
+        return "♀";
+      case "male":
+        return "♂";
+      default:
+        return "♂♀";
+    }
+  };
+
+  const hasUserApplied = meeting?.participants.some(p => p.user_id === user?.id);
 
   if (isLoading) {
     return (
@@ -243,191 +281,179 @@ const MeetingDetails = () => {
   }
 
   return (
-    <MobileLayout title={meeting.activity.name} showBack>
-      <div className="flex flex-col h-full">
+    <MobileLayout title="Szczegóły spotkania" showBack>
+      <div className="flex flex-col h-full pb-20">
         <Tabs defaultValue="info" className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 mx-4 mt-2" style={{ width: 'calc(100% - 2rem)' }}>
-            <TabsTrigger value="info">Informacje</TabsTrigger>
-            <TabsTrigger value="participants">Uczestnicy</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-          </TabsList>
+          <div className="px-4 pt-2">
+            <TabsList className="w-full grid grid-cols-3 bg-muted/50">
+              <TabsTrigger 
+                value="info" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"
+              >
+                Informacje
+              </TabsTrigger>
+              <TabsTrigger 
+                value="participants"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"
+              >
+                Uczestnicy
+              </TabsTrigger>
+              <TabsTrigger 
+                value="chat"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"
+              >
+                Chat
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="info" className="flex-1 overflow-auto px-4 pb-4">
-            {/* Image */}
-            <div className="relative w-full h-48 rounded-lg overflow-hidden mt-4 bg-muted">
-              {meeting.image_url ? (
-                <img
-                  src={meeting.image_url}
-                  alt={meeting.activity.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-                  <span className="text-4xl">
-                    {meeting.activity.category.icon || "📅"}
-                  </span>
-                </div>
-              )}
-            </div>
+          <TabsContent value="info" className="flex-1 overflow-auto">
+            <div className="px-4 pb-4">
+              {/* Image */}
+              <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden mt-4 bg-muted shadow-lg">
+                {meeting.image_url ? (
+                  <img
+                    src={meeting.image_url}
+                    alt={meeting.activity.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/20">
+                    <span className="text-6xl">
+                      {meeting.activity.category.icon || "📅"}
+                    </span>
+                  </div>
+                )}
+              </div>
 
-            {/* Meeting Info */}
-            <div className="mt-4 space-y-4">
-              {/* Activity & Category */}
-              <div className="flex items-center gap-2">
-                <Tag className="h-5 w-5 text-primary" />
+              {/* Title Row */}
+              <div className="flex justify-between items-start mt-5">
                 <div>
-                  <p className="font-semibold">{meeting.activity.name}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <h1 className="text-2xl font-bold text-foreground">
+                    {meeting.activity.name}
+                  </h1>
+                  <p className="text-muted-foreground">
                     {meeting.activity.category.name}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-foreground">
+                    {meeting.city}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Organizator: <span className="text-primary font-medium">@{meeting.creator.username}</span>
                   </p>
                 </div>
               </div>
 
-              {/* City */}
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                <span>{meeting.city}</span>
-              </div>
-
-              {/* Date */}
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <span>
-                  {format(new Date(meeting.meeting_date), "EEEE, d MMMM yyyy, HH:mm", {
-                    locale: pl,
-                  })}
-                </span>
-              </div>
-
-              {/* Organizer */}
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
+              {/* Info Bar */}
+              <div className="flex items-center justify-between mt-5 py-3 px-4 bg-muted/50 rounded-full border border-border">
                 <div className="flex items-center gap-2">
-                  {meeting.creator.avatar_url ? (
-                    <img
-                      src={meeting.creator.avatar_url}
-                      alt={meeting.creator.full_name}
-                      className="w-6 h-6 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs">
-                      {meeting.creator.full_name.charAt(0)}
-                    </div>
-                  )}
-                  <span>{meeting.creator.full_name}</span>
-                  {isCreator && (
-                    <span className="text-xs text-muted-foreground">(Ty)</span>
-                  )}
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    {format(new Date(meeting.meeting_date), "d/M/yyyy", { locale: pl })}
+                  </span>
+                </div>
+                <div className="w-px h-5 bg-border" />
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    {confirmedParticipants + 1}/{meeting.max_participants}
+                  </span>
+                </div>
+                <div className="w-px h-5 bg-border" />
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">{getGenderIcon(meeting.gender_preference)}</span>
+                  <span className="text-sm font-medium">
+                    {getGenderLabel(meeting.gender_preference)}
+                  </span>
                 </div>
               </div>
 
-              {/* Participants */}
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                <span>
-                  {confirmedParticipants} / {meeting.max_participants} uczestników
-                </span>
-              </div>
-
-              {/* Gender Preference */}
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
-                <span>{getGenderLabel(meeting.gender_preference)}</span>
-              </div>
-
               {/* Share Button */}
-              <Button
-                variant="outline"
-                className="w-full"
+              <button
                 onClick={handleShare}
+                className="flex items-center justify-center gap-2 w-full py-3 mt-4 text-primary hover:text-primary/80 transition-colors"
               >
-                <Share2 className="h-4 w-4 mr-2" />
-                Udostępnij spotkanie
-              </Button>
+                <Share2 className="h-5 w-5" />
+                <span className="font-medium">Udostępnij</span>
+              </button>
 
               {/* Description */}
-              <div className="border-t pt-4">
+              <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold">Opis</h3>
+                  <h3 className="text-lg font-bold">Opis:</h3>
                   {isCreator && !isEditingDescription && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsEditingDescription(true)}
-                    >
-                      <Edit3 className="h-4 w-4 mr-1" />
-                      Edytuj
-                    </Button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setIsEditingDescription(true)}
+                        className="text-primary font-medium hover:text-primary/80"
+                      >
+                        Edytuj
+                      </button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button className="text-destructive font-medium hover:text-destructive/80">
+                            Anuluj
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Czy na pewno chcesz anulować spotkanie?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Ta akcja jest nieodwracalna. Wszyscy uczestnicy zostaną
+                              powiadomieni o anulowaniu spotkania.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Nie</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleCancelMeeting}>
+                              Tak, anuluj
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   )}
                 </div>
 
                 {isEditingDescription ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <Textarea
                       value={editedDescription}
                       onChange={(e) => setEditedDescription(e.target.value)}
                       placeholder="Dodaj opis spotkania..."
                       rows={4}
+                      className="resize-none"
                     />
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       <Button
                         variant="outline"
-                        size="sm"
+                        className="flex-1"
                         onClick={() => {
                           setIsEditingDescription(false);
                           setEditedDescription(meeting.description || "");
                         }}
                       >
-                        <X className="h-4 w-4 mr-1" />
                         Anuluj
                       </Button>
                       <Button
-                        size="sm"
+                        className="flex-1"
                         onClick={handleSaveDescription}
                         disabled={isSaving}
                       >
-                        <Check className="h-4 w-4 mr-1" />
                         {isSaving ? "Zapisuję..." : "Zapisz"}
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground leading-relaxed">
                     {meeting.description || "Brak opisu"}
                   </p>
                 )}
               </div>
-
-              {/* Cancel Meeting (Only for creator) */}
-              {isCreator && (
-                <div className="border-t pt-4">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="w-full">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Anuluj spotkanie
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Czy na pewno chcesz anulować spotkanie?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Ta akcja jest nieodwracalna. Wszyscy uczestnicy zostaną
-                          powiadomieni o anulowaniu spotkania.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Nie</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleCancelMeeting}>
-                          Tak, anuluj
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
             </div>
           </TabsContent>
 
@@ -447,6 +473,37 @@ const MeetingDetails = () => {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Bottom Fixed Button */}
+        <div className="fixed bottom-20 left-0 right-0 px-4 pb-4 bg-gradient-to-t from-background via-background to-transparent pt-4">
+          <div className="max-w-md mx-auto">
+            {isCreator ? (
+              <Button 
+                className="w-full py-6 text-base font-semibold rounded-xl shadow-lg"
+                onClick={() => navigate(`/meeting/${meeting.id}/candidates`)}
+              >
+                <UserPlus className="h-5 w-5 mr-2" />
+                Przeglądaj kandydatów ({pendingParticipants})
+              </Button>
+            ) : hasUserApplied ? (
+              <Button 
+                className="w-full py-6 text-base font-semibold rounded-xl"
+                variant="secondary"
+                disabled
+              >
+                Zgłoszenie wysłane
+              </Button>
+            ) : (
+              <Button 
+                className="w-full py-6 text-base font-semibold rounded-xl shadow-lg"
+                onClick={handleJoinMeeting}
+              >
+                <UserPlus className="h-5 w-5 mr-2" />
+                Dołącz
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </MobileLayout>
   );

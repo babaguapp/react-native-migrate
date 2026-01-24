@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, X, UserX, Loader2 } from "lucide-react";
+import { notifyParticipantAccepted } from "@/lib/notifications";
 
 interface Candidate {
   id: string;
@@ -120,7 +121,7 @@ const MeetingCandidates = () => {
     }
   };
 
-  const handleAccept = async (candidateId: string) => {
+  const handleAccept = async (candidateId: string, candidateUserId: string, candidateName: string) => {
     setProcessingId(candidateId);
     try {
       const { error } = await supabase
@@ -129,6 +130,26 @@ const MeetingCandidates = () => {
         .eq("id", candidateId);
 
       if (error) throw error;
+
+      // Get all current accepted participants to notify them
+      const { data: acceptedParticipants } = await supabase
+        .from("meeting_participants")
+        .select("user_id")
+        .eq("meeting_id", id)
+        .eq("status", "accepted")
+        .neq("user_id", candidateUserId);
+
+      const participantIds = acceptedParticipants?.map((p) => p.user_id) || [];
+
+      // Notify other accepted participants about the new member
+      if (participantIds.length > 0) {
+        await notifyParticipantAccepted(
+          participantIds,
+          candidateName,
+          id!,
+          candidateUserId
+        );
+      }
 
       setCandidates((prev) => prev.filter((c) => c.id !== candidateId));
       toast({
@@ -278,7 +299,7 @@ const MeetingCandidates = () => {
                   </Button>
                   <Button
                     className="flex-1"
-                    onClick={() => handleAccept(candidate.id)}
+                    onClick={() => handleAccept(candidate.id, candidate.user_id, candidate.profile.full_name)}
                     disabled={processingId === candidate.id}
                   >
                     {processingId === candidate.id ? (

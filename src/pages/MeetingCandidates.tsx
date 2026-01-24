@@ -4,7 +4,7 @@ import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, X, UserX, Loader2 } from "lucide-react";
 import { notifyParticipantAccepted, notifyApplicationAccepted, notifyApplicationRejected } from "@/lib/notifications";

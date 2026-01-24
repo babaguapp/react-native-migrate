@@ -185,26 +185,18 @@ export default function Meetings() {
   // Initial load - check for location and fetch meetings
   useEffect(() => {
     const init = async () => {
-      await requestNotificationPermission();
+      // Request notification permission (skip if not supported)
+      try {
+        await requestNotificationPermission();
+      } catch (e) {
+        console.warn('Notification permission not available:', e);
+      }
       
       if (hasLocation && latitude && longitude) {
         await fetchMeetingsWithLocation(latitude, longitude);
       } else {
-        // Try to get location automatically first
-        try {
-          const permission = await navigator.permissions.query({ name: 'geolocation' });
-          if (permission.state === 'granted') {
-            requestLocation();
-          } else if (permission.state === 'prompt') {
-            // Show location prompt to encourage user
-            setShowLocationPrompt(true);
-          } else {
-            // Permission denied - fetch all meetings
-            await fetchAllMeetings();
-          }
-        } catch {
-          setShowLocationPrompt(true);
-        }
+        // Show location prompt - navigator.permissions API is not reliable in WebView/Capacitor
+        setShowLocationPrompt(true);
       }
     };
     

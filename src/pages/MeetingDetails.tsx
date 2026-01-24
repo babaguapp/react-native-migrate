@@ -14,6 +14,7 @@ import {
   UserPlus,
   Crown,
   LogOut,
+  X,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
@@ -274,6 +275,33 @@ const MeetingDetails = () => {
       toast({
         title: "Błąd",
         description: "Nie udało się opuścić spotkania",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleWithdrawApplication = async () => {
+    if (!meeting || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from("meeting_participants")
+        .delete()
+        .eq("meeting_id", meeting.id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Wycofano zgłoszenie",
+        description: "Możesz zgłosić się ponownie w każdej chwili",
+      });
+      fetchMeetingDetails();
+    } catch (error) {
+      console.error("Error withdrawing application:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się wycofać zgłoszenia",
         variant: "destructive",
       });
     }
@@ -618,13 +646,37 @@ const MeetingDetails = () => {
                 </AlertDialog>
               </div>
             ) : hasUserApplied ? (
-              <Button 
-                className="w-full py-6 text-base font-semibold rounded-xl"
-                variant="secondary"
-                disabled
-              >
-                Zgłoszenie wysłane
-              </Button>
+              <div className="space-y-3">
+                <Button 
+                  className="w-full py-6 text-base font-semibold rounded-xl"
+                  variant="secondary"
+                  disabled
+                >
+                  ⏳ Zgłoszenie wysłane
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="w-full flex items-center justify-center gap-2 text-destructive hover:text-destructive/80 transition-colors py-2">
+                      <X className="h-4 w-4" />
+                      <span className="text-sm font-medium">Wycofaj zgłoszenie</span>
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Wycofać zgłoszenie?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Czy na pewno chcesz wycofać zgłoszenie do tego spotkania?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleWithdrawApplication}>
+                        Wycofaj
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             ) : (
               <Button 
                 className="w-full py-6 text-base font-semibold rounded-xl shadow-lg"

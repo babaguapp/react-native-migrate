@@ -55,7 +55,7 @@ const formSchema = z.object({
   city: z.string().min(2, 'Miasto musi mieć min. 2 znaki').max(100, 'Miasto może mieć max. 100 znaków'),
   meeting_date: z.date({ required_error: 'Wybierz datę spotkania' }),
   max_participants: z.number().min(2, 'Min. 2 osoby').max(10, 'Max. 10 osób'),
-  gender_preference: z.enum(['women', 'men', 'all'], { required_error: 'Wybierz dla kogo jest spotkanie' }),
+  gender_preference: z.enum(['female', 'male', 'mixed'], { required_error: 'Wybierz dla kogo jest spotkanie' }),
   description: z.string().max(500, 'Opis może mieć max. 500 znaków').optional(),
 });
 
@@ -77,7 +77,7 @@ export default function CreateMeeting() {
       activity_id: '',
       city: '',
       max_participants: 4,
-      gender_preference: 'all',
+      gender_preference: 'mixed',
       description: '',
     },
   });
@@ -316,9 +316,9 @@ export default function CreateMeeting() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-background z-50">
-                      <SelectItem value="all">👥 Wszyscy</SelectItem>
-                      <SelectItem value="women">👩 Tylko kobiety</SelectItem>
-                      <SelectItem value="men">👨 Tylko mężczyźni</SelectItem>
+                      <SelectItem value="mixed">👥 Wszyscy</SelectItem>
+                      <SelectItem value="female">👩 Tylko kobiety</SelectItem>
+                      <SelectItem value="male">👨 Tylko mężczyźni</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

@@ -273,7 +273,8 @@ const MeetingDetails = () => {
     }
   };
 
-  const hasUserApplied = meeting?.participants.some(p => p.user_id === user?.id);
+  const hasUserApplied = meeting?.participants.some(p => p.user_id === user?.id && p.status === "pending");
+  const isAcceptedParticipant = meeting?.participants.some(p => p.user_id === user?.id && p.status === "accepted");
 
   if (isLoading) {
     return (
@@ -555,6 +556,14 @@ const MeetingDetails = () => {
               >
                 <UserPlus className="h-5 w-5 mr-2" />
                 Przeglądaj kandydatów ({pendingParticipants})
+              </Button>
+            ) : isAcceptedParticipant ? (
+              <Button 
+                className="w-full py-6 text-base font-semibold rounded-xl"
+                variant="default"
+                disabled
+              >
+                ✓ Jesteś uczestnikiem
               </Button>
             ) : hasUserApplied ? (
               <Button 

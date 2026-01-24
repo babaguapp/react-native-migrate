@@ -3,7 +3,7 @@ import { Search, RefreshCw, MapPin } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { MeetingCard } from '@/components/meetings/MeetingCard';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useGeolocation } from '@/hooks/useGeolocation';

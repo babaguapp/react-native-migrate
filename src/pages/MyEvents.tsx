@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +22,7 @@ interface MyEvent {
 
 export default function MyEvents() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [upcomingEvents, setUpcomingEvents] = useState<MyEvent[]>([]);
   const [pastEvents, setPastEvents] = useState<MyEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -163,6 +165,7 @@ export default function MyEvents() {
                   meeting={event}
                   badge={isOrganizer(event) ? 'Organizujesz' : 'Bierzesz udział'}
                   badgeVariant={isOrganizer(event) ? 'organizer' : 'participant'}
+                  onClick={() => navigate(`/meeting/${event.id}`)}
                 />
               ))
             )}
@@ -185,6 +188,7 @@ export default function MyEvents() {
                   badge={isOrganizer(event) ? 'Organizowałeś' : 'Brałeś udział'}
                   badgeVariant={isOrganizer(event) ? 'organizer' : 'participant'}
                   isPast
+                  onClick={() => navigate(`/meeting/${event.id}`)}
                 />
               ))
             )}

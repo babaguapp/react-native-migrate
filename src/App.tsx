@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Meetings from "./pages/Meetings";
 import CreateMeeting from "./pages/CreateMeeting";
+import MeetingDetails from "./pages/MeetingDetails";
 import MyEvents from "./pages/MyEvents";
 import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CreateMeeting />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/meeting/:id"
+              element={
+                <ProtectedRoute>
+                  <MeetingDetails />
                 </ProtectedRoute>
               }
             />

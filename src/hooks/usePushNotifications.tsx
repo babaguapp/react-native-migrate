@@ -85,15 +85,34 @@ export function usePushNotifications() {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
+      console.log('[PushNotifications] Starting registration flow...');
+      
       // Check current permission status
-      let permStatus = await PushNotifications.checkPermissions();
+      let permStatus;
+      try {
+        permStatus = await PushNotifications.checkPermissions();
+        console.log('[PushNotifications] Current permission status:', permStatus.receive);
+      } catch (permCheckError) {
+        console.error('[PushNotifications] Error checking permissions:', permCheckError);
+        setState(prev => ({ ...prev, loading: false, error: 'Błąd sprawdzania uprawnień' }));
+        return;
+      }
 
       if (permStatus.receive === 'prompt') {
         // Request permission
-        permStatus = await PushNotifications.requestPermissions();
+        try {
+          console.log('[PushNotifications] Requesting permissions...');
+          permStatus = await PushNotifications.requestPermissions();
+          console.log('[PushNotifications] Permission result:', permStatus.receive);
+        } catch (permRequestError) {
+          console.error('[PushNotifications] Error requesting permissions:', permRequestError);
+          setState(prev => ({ ...prev, loading: false, error: 'Błąd żądania uprawnień' }));
+          return;
+        }
       }
 
       if (permStatus.receive !== 'granted') {
+        console.log('[PushNotifications] Permission denied by user');
         setState(prev => ({
           ...prev,
           loading: false,
@@ -104,14 +123,26 @@ export function usePushNotifications() {
       }
 
       // Register with Apple / Google to receive push via APNS/FCM
-      await PushNotifications.register();
+      try {
+        console.log('[PushNotifications] Calling PushNotifications.register()...');
+        await PushNotifications.register();
+        console.log('[PushNotifications] register() completed successfully');
+      } catch (registerError) {
+        console.error('[PushNotifications] Error in register():', registerError);
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: 'Błąd rejestracji FCM',
+        }));
+        return;
+      }
 
     } catch (error) {
-      console.error('Error registering push notifications:', error);
+      console.error('[PushNotifications] Unexpected error:', error);
       setState(prev => ({
         ...prev,
         loading: false,
-        error: 'Nie udało się zarejestrować powiadomień push',
+        error: 'Nieoczekiwany błąd powiadomień push',
       }));
     }
   }, [isNative]);
@@ -121,12 +152,22 @@ export function usePushNotifications() {
 
     // On success, we should be able to receive notifications
     const registrationListener = PushNotifications.addListener('registration', async (tokenData: Token) => {
-      console.log('Push registration success, token: ' + tokenData.value);
+      console.log('[PushNotifications] Registration success, token:', tokenData.value?.substring(0, 20) + '...');
       
-      // Get current user and save token
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await saveTokenToDatabase(tokenData.value, user.id);
+      try {
+        // Get current user and save token
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('[PushNotifications] Error getting user:', userError);
+        } else if (user) {
+          console.log('[PushNotifications] Saving token for user:', user.id);
+          await saveTokenToDatabase(tokenData.value, user.id);
+        } else {
+          console.warn('[PushNotifications] No user found, token not saved');
+        }
+      } catch (saveError) {
+        console.error('[PushNotifications] Error in registration handler:', saveError);
       }
       
       setState(prev => ({

@@ -231,7 +231,10 @@ const MeetingCandidates = () => {
                 key={candidate.id}
                 className="bg-card border border-border rounded-xl p-4 shadow-sm"
               >
-                <div className="flex items-start gap-4">
+                <div 
+                  className="flex items-start gap-4 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => navigate(`/user/${candidate.user_id}`)}
+                >
                   <Avatar className="h-14 w-14">
                     <AvatarImage src={candidate.profile.avatar_url || undefined} />
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">

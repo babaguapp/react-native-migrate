@@ -65,6 +65,7 @@ const MeetingDetails = () => {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
   const isCreator = user?.id === meeting?.creator_id;
   const confirmedParticipants = meeting?.participants.filter(p => p.status === "accepted").length || 0;
   const pendingParticipants = meeting?.participants.filter(p => p.status === "pending").length || 0;
@@ -337,17 +338,25 @@ const MeetingDetails = () => {
   };
   const handleRemoveParticipant = async (participantUserId: string, participantName: string) => {
     if (!meeting || !user) return;
+    
+    // Start fade-out animation
+    setRemovingParticipantId(participantUserId);
+    
+    // Wait for animation to complete
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     try {
       const {
         error
       } = await supabase.from("meeting_participants").delete().eq("meeting_id", meeting.id).eq("user_id", participantUserId);
       if (error) throw error;
 
-      // Optimistically update local state immediately
+      // Update local state after animation
       setMeeting({
         ...meeting,
         participants: meeting.participants.filter(p => p.user_id !== participantUserId)
       });
+      setRemovingParticipantId(null);
 
       // Notify the removed participant
       await notifyRemovedFromMeeting(participantUserId, meeting.id, meeting.activity.name);
@@ -363,6 +372,7 @@ const MeetingDetails = () => {
       });
     } catch (error) {
       console.error("Error removing participant:", error);
+      setRemovingParticipantId(null);
       toast({
         title: "Błąd",
         description: "Nie udało się usunąć uczestnika",
@@ -569,7 +579,15 @@ const MeetingDetails = () => {
               </button>
 
               {/* Confirmed Participants */}
-              {meeting.participants.filter(p => p.status === "accepted").map(participant => <div key={participant.user_id} className="w-full flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border">
+              {meeting.participants.filter(p => p.status === "accepted").map(participant => (
+                <div 
+                  key={participant.user_id} 
+                  className={`w-full flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border transition-all duration-300 ${
+                    removingParticipantId === participant.user_id 
+                      ? 'opacity-0 scale-95 -translate-x-4' 
+                      : 'opacity-100 scale-100 translate-x-0'
+                  }`}
+                >
                     <button onClick={() => navigate(`/user/${participant.user_id}`)} className="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity text-left">
                       <Avatar className="h-12 w-12">
                         <AvatarImage src={participant.profile.avatar_url || undefined} />
@@ -585,7 +603,6 @@ const MeetingDetails = () => {
                     {isCreator ? <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground rounded-lg transition-all duration-200" onClick={e => e.stopPropagation()}>
-                            
                             <span>Usuń</span>
                           </button>
                         </AlertDialogTrigger>
@@ -606,7 +623,8 @@ const MeetingDetails = () => {
                       </AlertDialog> : <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1.5 rounded-lg">
                         Uczestnik
                       </span>}
-                  </div>)}
+                  </div>
+              ))}
 
               {meeting.participants.filter(p => p.status === "accepted").length === 0 && <p className="text-muted-foreground text-center py-6">
                   Brak potwierdzonych uczestników

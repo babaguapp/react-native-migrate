@@ -245,6 +245,29 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
     );
   }
 
+  // Helper to check if we should show date separator
+  const shouldShowDateSeparator = (currentMsg: ChatMessage, prevMsg: ChatMessage | null) => {
+    if (!prevMsg) return true;
+    const currentDate = new Date(currentMsg.created_at).toDateString();
+    const prevDate = new Date(prevMsg.created_at).toDateString();
+    return currentDate !== prevDate;
+  };
+
+  const formatDateSeparator = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Dzisiaj";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Wczoraj";
+    } else {
+      return format(date, "d MMMM yyyy", { locale: pl });
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-280px)]">
       {/* Messages */}
@@ -255,44 +278,56 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
             <p className="text-sm mt-1">Rozpocznij rozmowę!</p>
           </div>
         ) : (
-          messages.map((message) => {
+          messages.map((message, index) => {
             const isOwnMessage = message.user_id === user?.id;
             const profile = profiles[message.user_id];
+            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const showDateSeparator = shouldShowDateSeparator(message, prevMessage);
             
             return (
-              <div
-                key={message.id}
-                className={`flex gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}
-              >
-                {!isOwnMessage && (
-                  <Avatar className="h-8 w-8 flex-shrink-0">
+              <div key={message.id}>
+                {/* Date Separator */}
+                {showDateSeparator && (
+                  <div className="flex items-center justify-center my-4">
+                    <div className="bg-muted/80 text-muted-foreground text-xs font-medium px-3 py-1 rounded-full">
+                      {formatDateSeparator(message.created_at)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Message */}
+                <div className={`flex gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}>
+                  {/* Avatar */}
+                  <Avatar className="h-8 w-8 flex-shrink-0 mt-5">
                     <AvatarImage src={profile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {profile?.full_name?.charAt(0) || "?"}
+                    <AvatarFallback className={`text-xs font-semibold ${isOwnMessage ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                      {profile?.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || "?"}
                     </AvatarFallback>
                   </Avatar>
-                )}
-                
-                <div className={`max-w-[75%] ${isOwnMessage ? "items-end" : "items-start"}`}>
-                  {!isOwnMessage && profile && (
-                    <p className="text-xs text-muted-foreground mb-1 ml-1">
-                      {profile.full_name}
+                  
+                  <div className={`max-w-[70%] flex flex-col ${isOwnMessage ? "items-end" : "items-start"}`}>
+                    {/* Sender name */}
+                    <p className={`text-xs text-muted-foreground mb-1 ${isOwnMessage ? "mr-1" : "ml-1"}`}>
+                      {isOwnMessage ? "Ty" : (profile?.full_name || "Użytkownik")}
                     </p>
-                  )}
-                  <div
-                    className={`rounded-2xl px-4 py-2 ${
-                      isOwnMessage
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-muted rounded-bl-md"
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap break-words">
-                      {message.content}
+                    
+                    <div
+                      className={`rounded-2xl px-4 py-2 ${
+                        isOwnMessage
+                          ? "bg-primary text-primary-foreground rounded-br-md"
+                          : "bg-muted rounded-bl-md"
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {message.content}
+                      </p>
+                    </div>
+                    
+                    {/* Time */}
+                    <p className={`text-xs text-muted-foreground mt-1 ${isOwnMessage ? "mr-1" : "ml-1"}`}>
+                      {format(new Date(message.created_at), "HH:mm", { locale: pl })}
                     </p>
                   </div>
-                  <p className={`text-xs text-muted-foreground mt-1 ${isOwnMessage ? "text-right mr-1" : "ml-1"}`}>
-                    {format(new Date(message.created_at), "HH:mm", { locale: pl })}
-                  </p>
                 </div>
               </div>
             );
@@ -301,7 +336,7 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
         
         {/* Typing indicator */}
         {typingUsers.length > 0 && (
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm ml-10">
             <div className="flex gap-1">
               <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
               <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />

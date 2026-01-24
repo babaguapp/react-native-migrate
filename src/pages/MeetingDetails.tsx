@@ -586,31 +586,37 @@ const MeetingDetails = () => {
                 Przeglądaj kandydatów ({pendingParticipants})
               </Button>
             ) : isAcceptedParticipant ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    className="w-full py-6 text-base font-semibold rounded-xl"
-                    variant="outline"
-                  >
-                    <LogOut className="h-5 w-5 mr-2" />
-                    Opuść spotkanie
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Opuścić spotkanie?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Czy na pewno chcesz opuścić to spotkanie? Będziesz musiał ponownie wysłać zgłoszenie, aby dołączyć.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Anuluj</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleLeaveMeeting}>
-                      Opuść
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <div className="space-y-3">
+                <Button 
+                  className="w-full py-6 text-base font-semibold rounded-xl"
+                  variant="default"
+                  disabled
+                >
+                  ✓ Jesteś uczestnikiem
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="w-full flex items-center justify-center gap-2 text-destructive hover:text-destructive/80 transition-colors py-2">
+                      <LogOut className="h-4 w-4" />
+                      <span className="text-sm font-medium">Opuść spotkanie</span>
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Opuścić spotkanie?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Czy na pewno chcesz opuścić to spotkanie? Będziesz musiał ponownie wysłać zgłoszenie, aby dołączyć.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleLeaveMeeting}>
+                        Opuść
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             ) : hasUserApplied ? (
               <Button 
                 className="w-full py-6 text-base font-semibold rounded-xl"

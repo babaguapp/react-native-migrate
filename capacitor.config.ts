@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.9fa4bfe56f35495ebe00dc4071dec7d0',
+  appId: 'com.websko.babagu',
   appName: 'BaBaGu',
   webDir: 'dist',
   server: {

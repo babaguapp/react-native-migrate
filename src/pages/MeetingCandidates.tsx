@@ -125,7 +125,7 @@ const MeetingCandidates = () => {
     try {
       const { error } = await supabase
         .from("meeting_participants")
-        .update({ status: "confirmed" })
+        .update({ status: "accepted" })
         .eq("id", candidateId);
 
       if (error) throw error;

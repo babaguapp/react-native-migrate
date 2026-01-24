@@ -263,13 +263,13 @@ export default function SearchMeetings() {
           <div className="space-y-2">
             <Label>Kategoria</Label>
             <Select 
-              value={selectedCategory} 
+              value={selectedCategory || "all"} 
               onValueChange={(val) => setSelectedCategory(val === 'all' ? '' : val)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Wszystkie kategorie" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-popover border border-border shadow-lg z-50">
                 <SelectItem value="all">Wszystkie kategorie</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
@@ -280,18 +280,18 @@ export default function SearchMeetings() {
             </Select>
           </div>
 
-          {/* Activity - optional */}
+          {/* Activity - optional, depends on category */}
           <div className="space-y-2">
-            <Label>Aktywność</Label>
+            <Label>Aktywność {!selectedCategory && <span className="text-xs text-muted-foreground">(wybierz najpierw kategorię)</span>}</Label>
             <Select 
-              value={selectedActivity} 
+              value={selectedActivity || "all"} 
               onValueChange={(val) => setSelectedActivity(val === 'all' ? '' : val)}
-              disabled={isLoadingData}
+              disabled={isLoadingData || !selectedCategory}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Wszystkie aktywności" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-popover border border-border shadow-lg z-50">
                 <SelectItem value="all">Wszystkie aktywności</SelectItem>
                 {filteredActivities.map((activity) => (
                   <SelectItem key={activity.id} value={activity.id}>

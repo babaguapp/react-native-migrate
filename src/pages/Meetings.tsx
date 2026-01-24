@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { LocationPrompt } from '@/components/location/LocationPrompt';
+import { InlineLocationPrompt } from '@/components/location/InlineLocationPrompt';
 
 interface Meeting {
   id: string;
@@ -246,6 +246,14 @@ export default function Meetings() {
           )}
         </div>
 
+        {/* Inline location prompt - no Dialog/Portal to avoid WebView crashes */}
+        {showLocationPrompt && (
+          <InlineLocationPrompt
+            onLocationSet={handleLocationSet}
+            onSkip={handleSkipLocation}
+          />
+        )}
+
         {!hasLocation && !showLocationPrompt && (
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4">
             <p className="text-sm text-foreground mb-2">
@@ -340,11 +348,7 @@ export default function Meetings() {
         </Button>
       </div>
 
-      <LocationPrompt
-        open={showLocationPrompt}
-        onClose={handleSkipLocation}
-        onLocationSet={handleLocationSet}
-      />
+      {/* LocationPrompt Dialog removed - using InlineLocationPrompt instead to avoid WebView crashes */}
     </MobileLayout>
   );
 }

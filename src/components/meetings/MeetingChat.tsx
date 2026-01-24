@@ -7,7 +7,7 @@ import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, BellOff, Bell } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -41,6 +41,8 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
   const [isSending, setIsSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string; username: string; avatar_url: string | null }>>({});
+  const [isMuted, setIsMuted] = useState(false);
+  const [isTogglingMute, setIsTogglingMute] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -80,6 +82,67 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
       console.error('Error removing chat presence:', error);
     }
   }, [user, meetingId]);
+
+  // Check if meeting is muted
+  const checkMuteStatus = useCallback(async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('muted_meetings')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('meeting_id', meetingId)
+      .maybeSingle();
+    
+    setIsMuted(!!data);
+  }, [user, meetingId]);
+
+  // Toggle mute status
+  const toggleMute = async () => {
+    if (!user || isTogglingMute) return;
+    
+    setIsTogglingMute(true);
+    
+    try {
+      if (isMuted) {
+        // Unmute
+        await supabase
+          .from('muted_meetings')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('meeting_id', meetingId);
+        
+        setIsMuted(false);
+        toast({
+          title: "Powiadomienia włączone",
+          description: "Będziesz otrzymywać powiadomienia z tego czatu",
+        });
+      } else {
+        // Mute
+        await supabase
+          .from('muted_meetings')
+          .insert({
+            user_id: user.id,
+            meeting_id: meetingId,
+          });
+        
+        setIsMuted(true);
+        toast({
+          title: "Powiadomienia wyciszone",
+          description: "Nie będziesz otrzymywać powiadomień z tego czatu",
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling mute:', error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zmienić ustawień powiadomień",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTogglingMute(false);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -141,6 +204,9 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
     
     // Mark messages as read when entering chat
     markAsRead(meetingId);
+    
+    // Check mute status
+    checkMuteStatus();
     
     // Update presence immediately and set up interval
     updateChatPresence();
@@ -320,8 +386,30 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
 
   return (
     <div className="flex flex-col h-[calc(100vh-280px)]">
+      {/* Mute toggle header */}
+      <div className="flex items-center justify-end pb-2 border-b border-border mb-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleMute}
+          disabled={isTogglingMute}
+          className="gap-2 text-muted-foreground hover:text-foreground"
+        >
+          {isTogglingMute ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isMuted ? (
+            <BellOff className="h-4 w-4" />
+          ) : (
+            <Bell className="h-4 w-4" />
+          )}
+          <span className="text-xs">
+            {isMuted ? "Wyciszono" : "Wycisz"}
+          </span>
+        </Button>
+      </div>
+      
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 py-4">
+      <div className="flex-1 overflow-y-auto space-y-3 py-2">
         {messages.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <p>Brak wiadomości</p>

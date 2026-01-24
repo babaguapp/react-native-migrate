@@ -5,26 +5,18 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Settings,
   Plus,
-  Edit3,
-  X,
-  Check,
   Loader2,
   Image as ImageIcon,
   Trash2,
-  LogOut,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface UserPhoto {
   id: string;
@@ -34,7 +26,7 @@ interface UserPhoto {
 }
 
 export default function Profile() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,19 +34,13 @@ export default function Profile() {
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [isEditingBio, setIsEditingBio] = useState(false);
-  const [editedBio, setEditedBio] = useState("");
-  const [isSavingBio, setIsSavingBio] = useState(false);
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
   const [showPhotoDialog, setShowPhotoDialog] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<UserPhoto | null>(null);
 
   useEffect(() => {
-    if (profile) {
-      setEditedBio(profile.bio || "");
-    }
     fetchPhotos();
-  }, [profile]);
+  }, [user]);
 
   const fetchPhotos = async () => {
     if (!user) return;
@@ -72,35 +58,6 @@ export default function Profile() {
       console.error("Error fetching photos:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSaveBio = async () => {
-    if (!user) return;
-
-    setIsSavingBio(true);
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ bio: editedBio })
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      setIsEditingBio(false);
-      toast({
-        title: "Zapisano",
-        description: "Bio zostało zaktualizowane",
-      });
-    } catch (error) {
-      console.error("Error saving bio:", error);
-      toast({
-        title: "Błąd",
-        description: "Nie udało się zapisać bio",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSavingBio(false);
     }
   };
 
@@ -211,11 +168,6 @@ export default function Profile() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
-  };
-
   if (!profile) {
     return (
       <MobileLayout title="Mój profil" showBack>
@@ -273,58 +225,17 @@ export default function Profile() {
               
               {/* Settings button */}
               <button
-                onClick={() => setIsEditingBio(true)}
+                onClick={() => navigate('/settings')}
                 className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"
               >
                 <Settings className="h-6 w-6" />
               </button>
             </div>
 
-            {/* Bio */}
-            {isEditingBio ? (
-              <div className="mt-3 space-y-2">
-                <Textarea
-                  value={editedBio}
-                  onChange={(e) => setEditedBio(e.target.value)}
-                  placeholder="Napisz coś o sobie..."
-                  rows={3}
-                  className="resize-none text-sm"
-                  maxLength={150}
-                />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">
-                    {editedBio.length}/150
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setIsEditingBio(false);
-                        setEditedBio(profile.bio || "");
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSaveBio}
-                      disabled={isSavingBio}
-                    >
-                      {isSavingBio ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Check className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                {profile.bio || "Brak opisu"}
-              </p>
-            )}
+            {/* Bio - always show, edit in Settings */}
+            <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+              {profile.bio || "Brak opisu"}
+            </p>
           </div>
         </div>
 

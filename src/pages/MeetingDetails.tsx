@@ -343,6 +343,12 @@ const MeetingDetails = () => {
       } = await supabase.from("meeting_participants").delete().eq("meeting_id", meeting.id).eq("user_id", participantUserId);
       if (error) throw error;
 
+      // Optimistically update local state immediately
+      setMeeting({
+        ...meeting,
+        participants: meeting.participants.filter(p => p.user_id !== participantUserId)
+      });
+
       // Notify the removed participant
       await notifyRemovedFromMeeting(participantUserId, meeting.id, meeting.activity.name);
 
@@ -355,7 +361,6 @@ const MeetingDetails = () => {
         title: "Usunięto uczestnika",
         description: `${participantName} został usunięty ze spotkania`
       });
-      fetchMeetingDetails();
     } catch (error) {
       console.error("Error removing participant:", error);
       toast({
@@ -363,6 +368,8 @@ const MeetingDetails = () => {
         description: "Nie udało się usunąć uczestnika",
         variant: "destructive"
       });
+      // Refetch to restore correct state on error
+      await fetchMeetingDetails();
     }
   };
   const getGenderLabel = (preference: string) => {

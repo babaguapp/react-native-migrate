@@ -5,7 +5,9 @@ const config: CapacitorConfig = {
   appName: 'BaBaGu',
   webDir: 'dist',
   server: {
-    url: 'https://9fa4bfe5-6f35-495e-be00-dc4071dec7d0.lovableproject.com?forceHideBadge=true',
+    // Dla emulatora Android: 10.0.2.2 wskazuje na localhost hosta
+    // Dla fizycznego urządzenia: użyj swojego IP z sieci (np. 192.168.1.100)
+    url: 'http://10.0.2.2:8080',
     cleartext: true
   },
   plugins: {

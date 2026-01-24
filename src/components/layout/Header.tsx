@@ -1,4 +1,5 @@
 import { Menu, Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { BaBaGuLogo } from '@/components/BaBaGuLogo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { profile } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-card border-b border-border safe-area-top z-50">
@@ -29,8 +31,11 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Button variant="ghost" size="icon">
             <Bell className="w-6 h-6" />
           </Button>
-          <div className="relative">
-            <Avatar className="w-10 h-10">
+          <button 
+            className="relative"
+            onClick={() => navigate('/profile')}
+          >
+            <Avatar className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
               <AvatarImage src={profile?.avatar_url ?? undefined} />
               <AvatarFallback className="bg-muted text-muted-foreground">
                 {profile?.full_name?.charAt(0) ?? 'U'}
@@ -43,7 +48,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </svg>
               </div>
             )}
-          </div>
+          </button>
         </div>
       </div>
     </header>

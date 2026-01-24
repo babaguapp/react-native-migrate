@@ -1,0 +1,444 @@
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { MobileLayout } from "@/components/layout/MobileLayout";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Settings,
+  Plus,
+  Edit3,
+  X,
+  Check,
+  Loader2,
+  Image as ImageIcon,
+  Trash2,
+  LogOut,
+} from "lucide-react";
+
+interface UserPhoto {
+  id: string;
+  photo_url: string;
+  caption: string | null;
+  created_at: string;
+}
+
+export default function Profile() {
+  const { user, profile, signOut } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [photos, setPhotos] = useState<UserPhoto[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [editedBio, setEditedBio] = useState("");
+  const [isSavingBio, setIsSavingBio] = useState(false);
+  const [showAvatarDialog, setShowAvatarDialog] = useState(false);
+  const [showPhotoDialog, setShowPhotoDialog] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<UserPhoto | null>(null);
+
+  useEffect(() => {
+    if (profile) {
+      setEditedBio(profile.bio || "");
+    }
+    fetchPhotos();
+  }, [profile]);
+
+  const fetchPhotos = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("user_photos")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setPhotos(data || []);
+    } catch (error) {
+      console.error("Error fetching photos:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveBio = async () => {
+    if (!user) return;
+
+    setIsSavingBio(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ bio: editedBio })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setIsEditingBio(false);
+      toast({
+        title: "Zapisano",
+        description: "Bio zostało zaktualizowane",
+      });
+    } catch (error) {
+      console.error("Error saving bio:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zapisać bio",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingBio(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Błąd",
+        description: "Wybierz plik obrazu",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Błąd",
+        description: "Maksymalny rozmiar pliku to 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("user-photos")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("user-photos")
+        .getPublicUrl(fileName);
+
+      // Save to database
+      const { error: dbError } = await supabase.from("user_photos").insert({
+        user_id: user.id,
+        photo_url: urlData.publicUrl,
+      });
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Dodano",
+        description: "Zdjęcie zostało dodane",
+      });
+
+      fetchPhotos();
+    } catch (error) {
+      console.error("Error uploading photo:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się dodać zdjęcia",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleDeletePhoto = async (photo: UserPhoto) => {
+    if (!user) return;
+
+    try {
+      // Extract file path from URL
+      const urlParts = photo.photo_url.split("/user-photos/");
+      if (urlParts[1]) {
+        await supabase.storage.from("user-photos").remove([urlParts[1]]);
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from("user_photos")
+        .delete()
+        .eq("id", photo.id);
+
+      if (error) throw error;
+
+      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+      setShowPhotoDialog(false);
+      setSelectedPhoto(null);
+
+      toast({
+        title: "Usunięto",
+        description: "Zdjęcie zostało usunięte",
+      });
+    } catch (error) {
+      console.error("Error deleting photo:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się usunąć zdjęcia",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  if (!profile) {
+    return (
+      <MobileLayout title="Mój profil" showBack>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MobileLayout>
+    );
+  }
+
+  return (
+    <MobileLayout title="Mój profil" showBack>
+      <div className="px-4 py-4 pb-24">
+        {/* Profile Header */}
+        <div className="flex flex-col items-center">
+          {/* Avatar - clickable to enlarge */}
+          <button
+            onClick={() => setShowAvatarDialog(true)}
+            className="relative group"
+          >
+            <Avatar className="h-24 w-24 ring-4 ring-primary/20">
+              <AvatarImage src={profile.avatar_url || undefined} />
+              <AvatarFallback className="bg-primary/10 text-primary text-3xl font-semibold">
+                {profile.full_name?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <ImageIcon className="h-6 w-6 text-white" />
+            </div>
+          </button>
+
+          {/* Name and username */}
+          <h1 className="text-xl font-bold mt-4">{profile.full_name}</h1>
+          <p className="text-primary font-medium">@{profile.username}</p>
+
+          {/* Stats */}
+          <div className="flex gap-8 mt-4">
+            <div className="text-center">
+              <p className="text-lg font-bold">{photos.length}</p>
+              <p className="text-sm text-muted-foreground">zdjęć</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold">{profile.points}</p>
+              <p className="text-sm text-muted-foreground">punktów</p>
+            </div>
+          </div>
+
+          {/* Edit Profile / Settings buttons */}
+          <div className="flex gap-3 mt-4 w-full max-w-xs">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsEditingBio(true)}
+            >
+              <Edit3 className="h-4 w-4 mr-2" />
+              Edytuj profil
+            </Button>
+            <Button variant="outline" size="icon" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Bio Section */}
+        <div className="mt-6">
+          {isEditingBio ? (
+            <div className="space-y-3">
+              <Textarea
+                value={editedBio}
+                onChange={(e) => setEditedBio(e.target.value)}
+                placeholder="Napisz coś o sobie..."
+                rows={3}
+                className="resize-none"
+                maxLength={150}
+              />
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">
+                  {editedBio.length}/150
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditingBio(false);
+                      setEditedBio(profile.bio || "");
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Anuluj
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveBio}
+                    disabled={isSavingBio}
+                  >
+                    {isSavingBio ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-1" />
+                        Zapisz
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center">
+              {profile.bio || "Brak opisu"}
+            </p>
+          )}
+        </div>
+
+        {/* Photos Grid */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Moje zdjęcia</h2>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1">
+            {/* Add Photo Button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              {isUploading ? (
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <Plus className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground mt-1">
+                    Dodaj
+                  </span>
+                </>
+              )}
+            </button>
+
+            {/* Photos */}
+            {photos.map((photo) => (
+              <button
+                key={photo.id}
+                onClick={() => {
+                  setSelectedPhoto(photo);
+                  setShowPhotoDialog(true);
+                }}
+                className="aspect-square overflow-hidden rounded-lg"
+              >
+                <img
+                  src={photo.photo_url}
+                  alt=""
+                  className="w-full h-full object-cover hover:scale-105 transition-transform"
+                />
+              </button>
+            ))}
+
+            {/* Empty state placeholders */}
+            {photos.length === 0 &&
+              Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-square bg-muted/30 rounded-lg"
+                />
+              ))}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoUpload}
+          />
+        </div>
+      </div>
+
+      {/* Avatar Dialog */}
+      <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden bg-transparent border-0">
+          <div className="relative">
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.full_name}
+                className="w-full aspect-square object-cover rounded-lg"
+              />
+            ) : (
+              <div className="w-full aspect-square bg-primary/10 flex items-center justify-center rounded-lg">
+                <span className="text-8xl text-primary font-bold">
+                  {profile.full_name?.charAt(0) || "U"}
+                </span>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo Dialog */}
+      <Dialog open={showPhotoDialog} onOpenChange={setShowPhotoDialog}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          {selectedPhoto && (
+            <div>
+              <img
+                src={selectedPhoto.photo_url}
+                alt=""
+                className="w-full aspect-square object-cover"
+              />
+              <div className="p-4">
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => handleDeletePhoto(selectedPhoto)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Usuń zdjęcie
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </MobileLayout>
+  );
+}

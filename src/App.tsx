@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import SearchMeetings from "./pages/SearchMeetings";
 import About from "./pages/About";
 import Help from "./pages/Help";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -125,6 +126,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Help />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <Notifications />
                 </ProtectedRoute>
               }
             />

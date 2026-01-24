@@ -356,7 +356,13 @@ const MeetingDetails = () => {
                     {meeting.city}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Organizator: <span className="text-primary font-medium">@{meeting.creator.username}</span>
+                    Organizator:{" "}
+                    <button 
+                      onClick={() => navigate(`/user/${meeting.creator_id}`)}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      @{meeting.creator.username}
+                    </button>
                   </p>
                 </div>
               </div>
@@ -475,7 +481,10 @@ const MeetingDetails = () => {
           <TabsContent value="participants" className="flex-1 overflow-auto px-4 pb-4">
             <div className="mt-4 space-y-3">
               {/* Organizer */}
-              <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
+              <button
+                onClick={() => navigate(`/user/${meeting.creator_id}`)}
+                className="w-full flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/20 hover:bg-primary/10 transition-colors text-left"
+              >
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={meeting.creator.avatar_url || undefined} />
                   <AvatarFallback className="bg-primary/20 text-primary font-semibold">
@@ -492,15 +501,16 @@ const MeetingDetails = () => {
                 <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
                   Organizator
                 </span>
-              </div>
+              </button>
 
               {/* Confirmed Participants */}
               {meeting.participants
                 .filter((p) => p.status === "confirmed")
                 .map((participant) => (
-                  <div
+                  <button
                     key={participant.user_id}
-                    className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border"
+                    onClick={() => navigate(`/user/${participant.user_id}`)}
+                    className="w-full flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border hover:bg-muted transition-colors text-left"
                   >
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={participant.profile.avatar_url || undefined} />
@@ -515,7 +525,7 @@ const MeetingDetails = () => {
                     <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
                       Uczestnik
                     </span>
-                  </div>
+                  </button>
                 ))}
 
               {meeting.participants.filter((p) => p.status === "confirmed").length === 0 && (

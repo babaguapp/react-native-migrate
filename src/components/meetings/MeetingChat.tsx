@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,7 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
   const { user } = useAuth();
   const { toast } = useToast();
   const { markAsRead } = useUnreadMessages();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -302,19 +304,32 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
 
                 {/* Message */}
                 <div className={`flex gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}>
-                  {/* Avatar */}
-                  <Avatar className="h-8 w-8 flex-shrink-0 mt-5">
-                    <AvatarImage src={profile?.avatar_url || undefined} />
-                    <AvatarFallback className={`text-xs font-semibold ${isOwnMessage ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
-                      {profile?.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || "?"}
-                    </AvatarFallback>
-                  </Avatar>
+                  {/* Avatar - clickable for other users */}
+                  <button
+                    onClick={() => !isOwnMessage && navigate(`/user/${message.user_id}`)}
+                    disabled={isOwnMessage}
+                    className={`flex-shrink-0 mt-5 ${!isOwnMessage ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile?.avatar_url || undefined} />
+                      <AvatarFallback className={`text-xs font-semibold ${isOwnMessage ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                        {profile?.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
                   
                   <div className={`max-w-[70%] flex flex-col ${isOwnMessage ? "items-end" : "items-start"}`}>
-                    {/* Sender name */}
-                    <p className={`text-xs text-muted-foreground mb-1 ${isOwnMessage ? "mr-1" : "ml-1"}`}>
-                      {isOwnMessage ? "Ty" : (profile?.full_name || "Użytkownik")}
-                    </p>
+                    {/* Sender name - clickable for other users */}
+                    {isOwnMessage ? (
+                      <p className="text-xs text-muted-foreground mb-1 mr-1">Ty</p>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/user/${message.user_id}`)}
+                        className="text-xs text-muted-foreground mb-1 ml-1 hover:text-primary hover:underline"
+                      >
+                        {profile?.full_name || "Użytkownik"}
+                      </button>
+                    )}
                     
                     <div
                       className={`rounded-2xl px-4 py-2 ${

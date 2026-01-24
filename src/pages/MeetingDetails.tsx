@@ -766,10 +766,11 @@ const MeetingDetails = () => {
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button 
-                            className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground rounded-lg transition-all duration-200"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <UserMinus className="h-5 w-5" />
+                            <UserMinus className="h-3.5 w-3.5" />
+                            <span>Usuń</span>
                           </button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -790,7 +791,7 @@ const MeetingDetails = () => {
                         </AlertDialogContent>
                       </AlertDialog>
                     ) : (
-                      <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                      <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1.5 rounded-lg">
                         Uczestnik
                       </span>
                     )}

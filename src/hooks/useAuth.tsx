@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Profile {
   id: string;
@@ -37,7 +36,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { registerPushNotifications, unregisterPushNotifications, isNative } = usePushNotifications();
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -65,13 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(() => {
             fetchProfile(session.user.id).then(setProfile);
           }, 0);
-          
-          // Register push notifications when user logs in
-          if (isNative && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-            setTimeout(() => {
-              registerPushNotifications(session.user.id);
-            }, 1000);
-          }
         } else {
           setProfile(null);
         }
@@ -88,20 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(p);
           setIsLoading(false);
         });
-        
-        // Register push notifications for existing session
-        if (isNative) {
-          setTimeout(() => {
-            registerPushNotifications(session.user.id);
-          }, 1000);
-        }
       } else {
         setIsLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [isNative, registerPushNotifications]);
+  }, []);
 
   const signUp = async (
     email: string, 
@@ -151,11 +135,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    // Deactivate push token before signing out
-    if (isNative && user) {
-      await unregisterPushNotifications(user.id);
-    }
-    
     await supabase.auth.signOut();
     setProfile(null);
     toast({

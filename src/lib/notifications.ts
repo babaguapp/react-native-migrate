@@ -7,7 +7,10 @@ export type NotificationType =
   | 'meeting_updated'
   | 'meeting_cancelled'
   | 'organizer_changed'
-  | 'became_organizer';
+  | 'became_organizer'
+  | 'application_accepted'
+  | 'application_rejected'
+  | 'removed_from_meeting';
 
 export async function sendNotification(
   targetUserId: string,
@@ -68,6 +71,48 @@ export async function notifyParticipantAccepted(
     )
   );
   await Promise.all(promises);
+}
+
+export async function notifyApplicationAccepted(
+  applicantId: string,
+  meetingId: string,
+  activityName: string
+) {
+  return sendNotification(
+    applicantId,
+    'application_accepted',
+    'Zgłoszenie zaakceptowane! 🎉',
+    `Zostałeś przyjęty do spotkania "${activityName}"`,
+    meetingId
+  );
+}
+
+export async function notifyApplicationRejected(
+  applicantId: string,
+  meetingId: string,
+  activityName: string
+) {
+  return sendNotification(
+    applicantId,
+    'application_rejected',
+    'Zgłoszenie odrzucone',
+    `Niestety, Twoje zgłoszenie do spotkania "${activityName}" zostało odrzucone`,
+    meetingId
+  );
+}
+
+export async function notifyRemovedFromMeeting(
+  participantId: string,
+  meetingId: string,
+  activityName: string
+) {
+  return sendNotification(
+    participantId,
+    'removed_from_meeting',
+    'Usunięto ze spotkania',
+    `Zostałeś usunięty ze spotkania "${activityName}"`,
+    meetingId
+  );
 }
 
 export async function notifyParticipantLeft(
@@ -152,3 +197,4 @@ export async function notifyOrganizerChanged(
   );
   await Promise.all(promises);
 }
+

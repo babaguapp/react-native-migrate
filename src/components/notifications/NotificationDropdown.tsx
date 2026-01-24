@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, Trash2, Users, UserPlus, UserMinus, Edit, XCircle, Crown } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Users, UserPlus, UserMinus, Edit, XCircle, Crown, CheckCircle, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -15,12 +15,15 @@ import { cn } from '@/lib/utils';
 
 const notificationIcons: Record<string, React.ReactNode> = {
   'join_request': <UserPlus className="h-4 w-4 text-primary" />,
-  'participant_accepted': <Users className="h-4 w-4 text-green-500" />,
+  'participant_accepted': <Users className="h-4 w-4 text-green-600" />,
   'participant_left': <UserMinus className="h-4 w-4 text-orange-500" />,
   'meeting_updated': <Edit className="h-4 w-4 text-blue-500" />,
   'meeting_cancelled': <XCircle className="h-4 w-4 text-destructive" />,
-  'organizer_changed': <Crown className="h-4 w-4 text-yellow-500" />,
-  'became_organizer': <Crown className="h-4 w-4 text-yellow-500" />,
+  'organizer_changed': <Crown className="h-4 w-4 text-amber-500" />,
+  'became_organizer': <Crown className="h-4 w-4 text-amber-500" />,
+  'application_accepted': <CheckCircle className="h-4 w-4 text-green-600" />,
+  'application_rejected': <Ban className="h-4 w-4 text-destructive" />,
+  'removed_from_meeting': <UserMinus className="h-4 w-4 text-destructive" />,
 };
 
 function NotificationItem({ 

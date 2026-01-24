@@ -15,7 +15,9 @@ import {
   Crown,
   LogOut,
   X,
+  UserMinus,
 } from "lucide-react";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -38,6 +40,7 @@ import {
   notifyMeetingUpdated,
   notifyBecameOrganizer,
   notifyOrganizerChanged,
+  notifyRemovedFromMeeting,
 } from "@/lib/notifications";
 
 interface Participant {
@@ -435,6 +438,54 @@ const MeetingDetails = () => {
     }
   };
 
+  const handleRemoveParticipant = async (participantUserId: string, participantName: string) => {
+    if (!meeting || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from("meeting_participants")
+        .delete()
+        .eq("meeting_id", meeting.id)
+        .eq("user_id", participantUserId);
+
+      if (error) throw error;
+
+      // Notify the removed participant
+      await notifyRemovedFromMeeting(
+        participantUserId,
+        meeting.id,
+        meeting.activity.name
+      );
+
+      // Notify other participants
+      const otherParticipantIds = meeting.participants
+        .filter((p) => p.status === "accepted" && p.user_id !== participantUserId)
+        .map((p) => p.user_id);
+
+      if (otherParticipantIds.length > 0) {
+        await notifyParticipantLeft(
+          otherParticipantIds,
+          participantName,
+          meeting.id,
+          participantUserId
+        );
+      }
+
+      toast({
+        title: "Usunięto uczestnika",
+        description: `${participantName} został usunięty ze spotkania`,
+      });
+      fetchMeetingDetails();
+    } catch (error) {
+      console.error("Error removing participant:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się usunąć uczestnika",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getGenderLabel = (preference: string) => {
     switch (preference) {
       case "female":
@@ -692,25 +743,58 @@ const MeetingDetails = () => {
               {meeting.participants
                 .filter((p) => p.status === "accepted")
                 .map((participant) => (
-                  <button
+                  <div
                     key={participant.user_id}
-                    onClick={() => navigate(`/user/${participant.user_id}`)}
-                    className="w-full flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border hover:bg-muted transition-colors text-left"
+                    className="w-full flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border"
                   >
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={participant.profile.avatar_url || undefined} />
-                      <AvatarFallback className="bg-muted text-muted-foreground font-semibold">
-                        {participant.profile.full_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <span className="font-semibold">{participant.profile.full_name}</span>
-                      <p className="text-sm text-muted-foreground">@{participant.profile.username}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                      Uczestnik
-                    </span>
-                  </button>
+                    <button
+                      onClick={() => navigate(`/user/${participant.user_id}`)}
+                      className="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity text-left"
+                    >
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={participant.profile.avatar_url || undefined} />
+                        <AvatarFallback className="bg-muted text-muted-foreground font-semibold">
+                          {participant.profile.full_name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <span className="font-semibold">{participant.profile.full_name}</span>
+                        <p className="text-sm text-muted-foreground">@{participant.profile.username}</p>
+                      </div>
+                    </button>
+                    {isCreator ? (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button 
+                            className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <UserMinus className="h-5 w-5" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Usunąć uczestnika?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Czy na pewno chcesz usunąć {participant.profile.full_name} ze spotkania?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleRemoveParticipant(participant.user_id, participant.profile.full_name)}
+                            >
+                              Usuń
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
+                      <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                        Uczestnik
+                      </span>
+                    )}
+                  </div>
                 ))}
 
               {meeting.participants.filter((p) => p.status === "accepted").length === 0 && (

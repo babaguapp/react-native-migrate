@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, X, UserX, Loader2 } from "lucide-react";
-import { notifyParticipantAccepted } from "@/lib/notifications";
+import { notifyParticipantAccepted, notifyApplicationAccepted, notifyApplicationRejected } from "@/lib/notifications";
 
 interface Candidate {
   id: string;
@@ -141,6 +141,15 @@ const MeetingCandidates = () => {
 
       const participantIds = acceptedParticipants?.map((p) => p.user_id) || [];
 
+      // Notify the accepted candidate
+      if (meeting) {
+        await notifyApplicationAccepted(
+          candidateUserId,
+          id!,
+          meeting.activity.name
+        );
+      }
+
       // Notify other accepted participants about the new member
       if (participantIds.length > 0) {
         await notifyParticipantAccepted(
@@ -168,7 +177,7 @@ const MeetingCandidates = () => {
     }
   };
 
-  const handleReject = async (candidateId: string) => {
+  const handleReject = async (candidateId: string, candidateUserId: string) => {
     setProcessingId(candidateId);
     try {
       const { error } = await supabase
@@ -177,6 +186,15 @@ const MeetingCandidates = () => {
         .eq("id", candidateId);
 
       if (error) throw error;
+
+      // Notify the rejected candidate
+      if (meeting) {
+        await notifyApplicationRejected(
+          candidateUserId,
+          id!,
+          meeting.activity.name
+        );
+      }
 
       setCandidates((prev) => prev.filter((c) => c.id !== candidateId));
       toast({
@@ -285,7 +303,7 @@ const MeetingCandidates = () => {
                   <Button
                     variant="outline"
                     className="flex-1 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => handleReject(candidate.id)}
+                    onClick={() => handleReject(candidate.id, candidate.user_id)}
                     disabled={processingId === candidate.id}
                   >
                     {processingId === candidate.id ? (

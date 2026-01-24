@@ -41,14 +41,20 @@ This automatically adds required permissions for:
 - **Camera** (profile photos)
 - **Push Notifications**
 
-### 4. Build and Sync
+### 4. Configure Firebase Cloud Messaging (REQUIRED for Push Notifications)
+
+⚠️ **IMPORTANT**: Without Firebase configuration, the app will CRASH when user grants notification permission!
+
+See the **Firebase Cloud Messaging Setup** section below.
+
+### 5. Build and Sync
 
 ```bash
 npm run build
 npx cap sync
 ```
 
-### 5. Run on Device/Emulator
+### 6. Run on Device/Emulator
 
 ```bash
 # Android
@@ -57,6 +63,74 @@ npx cap run android
 # iOS
 npx cap run ios
 ```
+
+---
+
+## Firebase Cloud Messaging Setup (Android)
+
+Push notifications on Android require Firebase Cloud Messaging (FCM). 
+
+### Step 1: Create Firebase Project
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click **"Add project"** or select existing project
+3. Follow the setup wizard (you can disable Google Analytics if not needed)
+
+### Step 2: Add Android App to Firebase
+
+1. In Firebase Console, click **"Add app"** → **Android icon**
+2. Enter Android package name:
+   ```
+   app.lovable.9fa4bfe56f35495ebe00dc4071dec7d0
+   ```
+3. (Optional) App nickname: `BaBaGu`
+4. (Optional) Debug signing certificate SHA-1 (not required for basic FCM)
+5. Click **"Register app"**
+
+### Step 3: Download google-services.json
+
+1. Click **"Download google-services.json"**
+2. **Place the file in:** `android/app/google-services.json`
+
+```
+android/
+└── app/
+    ├── google-services.json  ← PUT FILE HERE
+    ├── src/
+    └── build.gradle
+```
+
+### Step 4: Verify Gradle Configuration
+
+The Capacitor Push Notifications plugin should auto-configure Gradle. Verify these lines exist:
+
+**android/build.gradle** (project-level):
+```gradle
+buildscript {
+    dependencies {
+        // ... other dependencies
+        classpath 'com.google.gms:google-services:4.4.0'
+    }
+}
+```
+
+**android/app/build.gradle** (app-level, at the very bottom):
+```gradle
+apply plugin: 'com.google.gms.google-services'
+```
+
+### Step 5: Sync and Test
+
+```bash
+npx cap sync android
+npx cap run android
+```
+
+### Troubleshooting Firebase
+
+- **App crashes after granting notification permission**: `google-services.json` is missing or incorrect
+- **Build fails with "google-services.json not found"**: File is in wrong location
+- **FCM token not received**: Check Firebase Console → Project Settings → Cloud Messaging is enabled
 
 ---
 
@@ -176,8 +250,15 @@ npx cap open ios      # Opens in Xcode
 
 ## Troubleshooting
 
+### App crashes after granting notification permission
+- **Most common cause**: Missing `google-services.json` file
+- Ensure file is in `android/app/google-services.json`
+- Verify Firebase project has correct package name
+- Run `npx cap sync android` after adding the file
+
 ### App crashes on location prompt
 - Ensure permissions are added to AndroidManifest.xml
+- Run `node scripts/setup-android-permissions.js`
 - Run `npx cap sync android` after adding permissions
 - Enable location in emulator settings
 
@@ -189,6 +270,14 @@ npx cap open ios      # Opens in Xcode
 - Force stop the app and relaunch
 - Check that dev server is running on correct port
 - Verify `server.url` matches your setup
+
+### Build errors
+```bash
+# Clean and rebuild
+cd android && ./gradlew clean && cd ..
+npx cap sync android
+npx cap run android
+```
 
 ---
 

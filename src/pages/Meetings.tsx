@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, MapPin } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { MeetingCard } from '@/components/meetings/MeetingCard';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { LocationPrompt } from '@/components/location/LocationPrompt';
+
 interface Meeting {
   id: string;
   activity_name: string;
@@ -16,43 +19,24 @@ interface Meeting {
   meeting_date: string;
   city: string;
   image_url: string | null;
+  distance_km?: number;
 }
+
 export default function Meetings() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [locationStatus, setLocationStatus] = useState<'pending' | 'granted' | 'denied'>('pending');
-  const {
-    toast
-  } = useToast();
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const requestLocationPermission = async () => {
-    try {
-      const permission = await navigator.permissions.query({
-        name: 'geolocation'
-      });
-      if (permission.state === 'granted') {
-        setLocationStatus('granted');
-        return true;
-      }
-      return new Promise<boolean>(resolve => {
-        navigator.geolocation.getCurrentPosition(() => {
-          setLocationStatus('granted');
-          resolve(true);
-        }, () => {
-          setLocationStatus('denied');
-          toast({
-            title: 'Lokalizacja wymagana',
-            description: 'Aby zobaczyć spotkania w pobliżu, włącz dostęp do lokalizacji.',
-            variant: 'destructive'
-          });
-          resolve(false);
-        });
-      });
-    } catch (error) {
-      setLocationStatus('denied');
-      return false;
-    }
-  };
+  const { 
+    latitude, 
+    longitude, 
+    hasLocation, 
+    setManualLocation,
+    requestLocation,
+    loading: geoLoading 
+  } = useGeolocation();
+
   const requestNotificationPermission = async () => {
     if ('Notification' in window) {
       const permission = await Notification.requestPermission();
@@ -64,13 +48,30 @@ export default function Meetings() {
       }
     }
   };
-  const fetchMeetings = async () => {
+
+  const fetchMeetingsWithLocation = async (lat: number, lon: number) => {
     setIsLoading(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('meetings').select(`
+      // Use the database function for radius filtering
+      const { data, error } = await supabase.rpc('get_meetings_within_radius', {
+        user_lat: lat,
+        user_lon: lon,
+        radius_km: 100
+      });
+
+      if (error) throw error;
+
+      // Now we need to fetch additional data (activity names, creator, participants)
+      const meetingIds = (data || []).map((m: any) => m.id);
+      
+      if (meetingIds.length === 0) {
+        setMeetings([]);
+        return;
+      }
+
+      const { data: detailedMeetings, error: detailsError } = await supabase
+        .from('meetings')
+        .select(`
           id,
           max_participants,
           meeting_date,
@@ -89,22 +90,30 @@ export default function Meetings() {
             id,
             status
           )
-        `).gte('meeting_date', new Date().toISOString()).order('meeting_date', {
-        ascending: true
-      });
-      if (error) throw error;
-      const formattedMeetings: Meeting[] = (data || []).map((meeting: any) => ({
+        `)
+        .in('id', meetingIds);
+
+      if (detailsError) throw detailsError;
+
+      // Merge distance data with detailed data
+      const distanceMap = new Map((data || []).map((m: any) => [m.id, m.distance_km]));
+
+      const formattedMeetings: Meeting[] = (detailedMeetings || []).map((meeting: any) => ({
         id: meeting.id,
         activity_name: meeting.activities.name,
         category_name: meeting.activities.categories.name,
         creator_username: meeting.profiles.username,
         current_participants: meeting.meeting_participants.filter((p: any) => p.status === 'accepted').length + 1,
-        // +1 for creator
         max_participants: meeting.max_participants,
         meeting_date: meeting.meeting_date,
         city: meeting.city,
-        image_url: meeting.image_url
+        image_url: meeting.image_url,
+        distance_km: distanceMap.get(meeting.id) || null,
       }));
+
+      // Sort by distance
+      formattedMeetings.sort((a, b) => (a.distance_km || 0) - (b.distance_km || 0));
+
       setMeetings(formattedMeetings);
     } catch (error) {
       console.error('Error fetching meetings:', error);
@@ -117,24 +126,166 @@ export default function Meetings() {
       setIsLoading(false);
     }
   };
-  useEffect(() => {
-    const initApp = async () => {
-      await requestLocationPermission();
-      await requestNotificationPermission();
-      await fetchMeetings();
-    };
-    initApp();
-  }, []);
-  return <MobileLayout>
-      <div className="px-4 py-4">
-        <h1 className="text-2xl font-bold text-foreground mb-4">Blisko Ciebie:</h1>
 
-        {isLoading ? <div className="flex flex-col items-center justify-center py-12">
+  const fetchAllMeetings = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('meetings')
+        .select(`
+          id,
+          max_participants,
+          meeting_date,
+          city,
+          image_url,
+          activities!inner (
+            name,
+            categories!inner (
+              name
+            )
+          ),
+          profiles!inner (
+            username
+          ),
+          meeting_participants (
+            id,
+            status
+          )
+        `)
+        .gte('meeting_date', new Date().toISOString())
+        .order('meeting_date', { ascending: true });
+
+      if (error) throw error;
+
+      const formattedMeetings: Meeting[] = (data || []).map((meeting: any) => ({
+        id: meeting.id,
+        activity_name: meeting.activities.name,
+        category_name: meeting.activities.categories.name,
+        creator_username: meeting.profiles.username,
+        current_participants: meeting.meeting_participants.filter((p: any) => p.status === 'accepted').length + 1,
+        max_participants: meeting.max_participants,
+        meeting_date: meeting.meeting_date,
+        city: meeting.city,
+        image_url: meeting.image_url,
+      }));
+
+      setMeetings(formattedMeetings);
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      toast({
+        title: 'Błąd',
+        description: 'Nie udało się pobrać spotkań.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial load - check for location and fetch meetings
+  useEffect(() => {
+    const init = async () => {
+      await requestNotificationPermission();
+      
+      if (hasLocation && latitude && longitude) {
+        await fetchMeetingsWithLocation(latitude, longitude);
+      } else {
+        // Try to get location automatically first
+        try {
+          const permission = await navigator.permissions.query({ name: 'geolocation' });
+          if (permission.state === 'granted') {
+            requestLocation();
+          } else if (permission.state === 'prompt') {
+            // Show location prompt to encourage user
+            setShowLocationPrompt(true);
+          } else {
+            // Permission denied - fetch all meetings
+            await fetchAllMeetings();
+          }
+        } catch {
+          setShowLocationPrompt(true);
+        }
+      }
+    };
+    
+    init();
+  }, []);
+
+  // Re-fetch when location changes
+  useEffect(() => {
+    if (hasLocation && latitude && longitude && !geoLoading) {
+      fetchMeetingsWithLocation(latitude, longitude);
+    }
+  }, [hasLocation, latitude, longitude, geoLoading]);
+
+  const handleLocationSet = (lat: number, lon: number) => {
+    setManualLocation(lat, lon);
+    setShowLocationPrompt(false);
+  };
+
+  const handleSkipLocation = () => {
+    setShowLocationPrompt(false);
+    fetchAllMeetings();
+  };
+
+  const formatDistance = (km: number | undefined) => {
+    if (!km) return null;
+    if (km < 1) return `${Math.round(km * 1000)} m`;
+    return `${Math.round(km)} km`;
+  };
+
+  return (
+    <MobileLayout>
+      <div className="px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-foreground">
+            {hasLocation ? 'Blisko Ciebie:' : 'Wszystkie spotkania:'}
+          </h1>
+          {hasLocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowLocationPrompt(true)}
+              className="text-muted-foreground"
+            >
+              <MapPin className="h-4 w-4 mr-1" />
+              Zmień
+            </Button>
+          )}
+        </div>
+
+        {!hasLocation && !showLocationPrompt && (
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4">
+            <p className="text-sm text-foreground mb-2">
+              📍 Włącz lokalizację, aby zobaczyć spotkania w promieniu 100 km
+            </p>
+            <Button
+              size="sm"
+              onClick={() => setShowLocationPrompt(true)}
+              className="w-full"
+            >
+              Ustaw lokalizację
+            </Button>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12">
             <RefreshCw className="w-8 h-8 animate-spin text-primary mb-4" />
             <p className="text-muted-foreground">Ładowanie spotkań...</p>
-          </div> : meetings.length === 0 ? <div className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-muted-foreground mb-4">Brak spotkań w pobliżu.</p>
-            <Button onClick={fetchMeetings} className="bg-secondary hover:bg-secondary/90">
+          </div>
+        ) : meetings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-muted-foreground mb-4">
+              {hasLocation ? 'Brak spotkań w promieniu 100 km.' : 'Brak dostępnych spotkań.'}
+            </p>
+            <Button 
+              onClick={() => hasLocation && latitude && longitude 
+                ? fetchMeetingsWithLocation(latitude, longitude) 
+                : fetchAllMeetings()
+              } 
+              className="bg-secondary hover:bg-secondary/90"
+            >
               Odśwież
             </Button>
 
@@ -152,8 +303,23 @@ export default function Meetings() {
                 Utwórz
               </Button>
             </div>
-          </div> : <div className="space-y-4">
-            {meetings.map(meeting => <MeetingCard key={meeting.id} meeting={meeting} onClick={() => navigate(`/meeting/${meeting.id}`)} />)}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {meetings.map(meeting => (
+              <div key={meeting.id} className="relative">
+                <MeetingCard 
+                  meeting={meeting} 
+                  onClick={() => navigate(`/meeting/${meeting.id}`)} 
+                />
+                {meeting.distance_km !== undefined && (
+                  <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {formatDistance(meeting.distance_km)}
+                  </div>
+                )}
+              </div>
+            ))}
 
             <div className="mt-8 text-center">
               <p className="text-muted-foreground mb-2">
@@ -169,13 +335,24 @@ export default function Meetings() {
                 Utwórz
               </Button>
             </div>
-          </div>}
+          </div>
+        )}
 
         {/* Floating search button */}
-        <Button className="fixed bottom-24 right-4 bg-secondary hover:bg-secondary/90 shadow-lg rounded-full px-6" onClick={() => navigate('/search')}>
+        <Button 
+          className="fixed bottom-24 right-4 bg-secondary hover:bg-secondary/90 shadow-lg rounded-full px-6" 
+          onClick={() => navigate('/search')}
+        >
           <Search className="w-5 h-5 mr-2" />
           Szukaj spotkań
         </Button>
       </div>
-    </MobileLayout>;
+
+      <LocationPrompt
+        open={showLocationPrompt}
+        onClose={handleSkipLocation}
+        onLocationSet={handleLocationSet}
+      />
+    </MobileLayout>
+  );
 }

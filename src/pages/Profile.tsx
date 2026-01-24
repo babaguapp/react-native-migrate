@@ -226,135 +226,126 @@ export default function Profile() {
     );
   }
 
+  // Calculate age from birth_date
+  const calculateAge = (birthDate: string) => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   return (
     <MobileLayout title="Mój profil" showBack>
       <div className="px-4 py-4 pb-24">
-        {/* Profile Header */}
-        <div className="flex flex-col items-center">
+        {/* Profile Header - Instagram-like layout */}
+        <div className="flex items-start gap-4">
           {/* Avatar - clickable to enlarge */}
           <button
             onClick={() => setShowAvatarDialog(true)}
-            className="relative group"
+            className="relative group flex-shrink-0"
           >
-            <Avatar className="h-24 w-24 ring-4 ring-primary/20">
-              <AvatarImage src={profile.avatar_url || undefined} />
-              <AvatarFallback className="bg-primary/10 text-primary text-3xl font-semibold">
-                {profile.full_name?.charAt(0) || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <div className="p-1 rounded-full bg-gradient-to-tr from-primary via-purple-500 to-pink-500">
+              <Avatar className="h-24 w-24 border-4 border-background">
+                <AvatarImage src={profile.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-3xl font-semibold">
+                  {profile.full_name?.charAt(0) || "U"}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <div className="absolute inset-1 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <ImageIcon className="h-6 w-6 text-white" />
             </div>
           </button>
 
-          {/* Name and username */}
-          <h1 className="text-xl font-bold mt-4">{profile.full_name}</h1>
-          <p className="text-primary font-medium">@{profile.username}</p>
-
-          {/* Stats */}
-          <div className="flex gap-8 mt-4">
-            <div className="text-center">
-              <p className="text-lg font-bold">{photos.length}</p>
-              <p className="text-sm text-muted-foreground">zdjęć</p>
+          {/* Profile Info */}
+          <div className="flex-1 min-w-0 pt-2">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold truncate">{profile.full_name}</h1>
+                <p className="text-muted-foreground">
+                  Wiek: {profile.birth_date ? calculateAge(profile.birth_date) : "?"} · <span className="text-primary font-medium">{profile.username}</span>
+                </p>
+              </div>
+              
+              {/* Settings button */}
+              <button
+                onClick={() => setIsEditingBio(true)}
+                className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"
+              >
+                <Settings className="h-6 w-6" />
+              </button>
             </div>
-            <div className="text-center">
-              <p className="text-lg font-bold">{profile.points}</p>
-              <p className="text-sm text-muted-foreground">punktów</p>
-            </div>
-          </div>
 
-          {/* Edit Profile / Settings buttons */}
-          <div className="flex gap-3 mt-4 w-full max-w-xs">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setIsEditingBio(true)}
-            >
-              <Edit3 className="h-4 w-4 mr-2" />
-              Edytuj profil
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Bio Section */}
-        <div className="mt-6">
-          {isEditingBio ? (
-            <div className="space-y-3">
-              <Textarea
-                value={editedBio}
-                onChange={(e) => setEditedBio(e.target.value)}
-                placeholder="Napisz coś o sobie..."
-                rows={3}
-                className="resize-none"
-                maxLength={150}
-              />
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">
-                  {editedBio.length}/150
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsEditingBio(false);
-                      setEditedBio(profile.bio || "");
-                    }}
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Anuluj
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSaveBio}
-                    disabled={isSavingBio}
-                  >
-                    {isSavingBio ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 mr-1" />
-                        Zapisz
-                      </>
-                    )}
-                  </Button>
+            {/* Bio */}
+            {isEditingBio ? (
+              <div className="mt-3 space-y-2">
+                <Textarea
+                  value={editedBio}
+                  onChange={(e) => setEditedBio(e.target.value)}
+                  placeholder="Napisz coś o sobie..."
+                  rows={3}
+                  className="resize-none text-sm"
+                  maxLength={150}
+                />
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">
+                    {editedBio.length}/150
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsEditingBio(false);
+                        setEditedBio(profile.bio || "");
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveBio}
+                      disabled={isSavingBio}
+                    >
+                      {isSavingBio ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center">
-              {profile.bio || "Brak opisu"}
-            </p>
-          )}
+            ) : (
+              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+                {profile.bio || "Brak opisu"}
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Photos Grid */}
+        {/* Photos Section */}
         <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Moje zdjęcia</h2>
-          </div>
-
-          <div className="grid grid-cols-3 gap-1">
-            {/* Add Photo Button */}
+          <div className="flex items-center gap-3 mb-4">
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center hover:bg-muted transition-colors disabled:opacity-50"
+              className="w-12 h-12 bg-muted/50 border border-border rounded-lg flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50"
             >
               {isUploading ? (
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               ) : (
-                <>
-                  <Plus className="h-8 w-8 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground mt-1">
-                    Dodaj
-                  </span>
-                </>
+                <Plus className="h-5 w-5 text-muted-foreground" />
               )}
             </button>
+            <h2 className="text-lg font-semibold">Zdjęcia ({photos.length}/10)</h2>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1">
 
             {/* Photos */}
             {photos.map((photo) => (

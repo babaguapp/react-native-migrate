@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { MeetingChat } from "@/components/meetings/MeetingChat";
 
 interface Participant {
   user_id: string;
@@ -525,12 +526,12 @@ const MeetingDetails = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="chat" className="flex-1 overflow-auto px-4 pb-4">
-            <div className="mt-4">
-              <p className="text-muted-foreground text-center py-8">
-                Chat będzie dostępny wkrótce
-              </p>
-            </div>
+          <TabsContent value="chat" className="flex-1 overflow-hidden px-4">
+            <MeetingChat 
+              meetingId={meeting.id}
+              isCreator={isCreator}
+              isParticipant={meeting.participants.some(p => p.user_id === user?.id && p.status === "confirmed")}
+            />
           </TabsContent>
         </Tabs>
 

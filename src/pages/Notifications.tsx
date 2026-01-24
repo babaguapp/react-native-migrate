@@ -112,8 +112,20 @@ export default function Notifications() {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    if (notification.meeting_id) {
-      navigate(`/meeting/${notification.meeting_id}`);
+    
+    if (!notification.meeting_id) return;
+    
+    // Navigate to appropriate screen based on notification type
+    switch (notification.type) {
+      case 'new_message':
+        navigate(`/meeting/${notification.meeting_id}?tab=chat`);
+        break;
+      case 'join_request':
+        navigate(`/meeting/${notification.meeting_id}/candidates`);
+        break;
+      default:
+        navigate(`/meeting/${notification.meeting_id}`);
+        break;
     }
   };
 

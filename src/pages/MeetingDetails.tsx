@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,8 @@ const MeetingDetails = () => {
   } = useParams<{
     id: string;
   }>();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'info';
   const navigate = useNavigate();
   const {
     toast
@@ -420,7 +422,7 @@ const MeetingDetails = () => {
   }
   return <MobileLayout title="Szczegóły spotkania" showBack>
       <div className="flex flex-col h-full pb-20">
-        <Tabs defaultValue="info" className="flex-1 flex flex-col">
+        <Tabs defaultValue={defaultTab} className="flex-1 flex flex-col">
           <div className="px-4 pt-2">
             <TabsList className="w-full grid grid-cols-3 bg-muted/50">
               <TabsTrigger value="info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg">

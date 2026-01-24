@@ -347,6 +347,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_chat_presence: {
+        Row: {
+          id: string
+          last_active_at: string
+          meeting_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_active_at?: string
+          meeting_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_active_at?: string
+          meeting_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_chat_presence_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notification_preferences: {
         Row: {
           all_notifications: boolean

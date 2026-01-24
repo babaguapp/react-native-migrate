@@ -46,8 +46,40 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
   const channelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef(false);
+  const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const canChat = isCreator || isParticipant;
+
+  // Track user presence in chat (for push notification filtering)
+  const updateChatPresence = useCallback(async () => {
+    if (!user || !canChat) return;
+    
+    try {
+      await supabase
+        .from('user_chat_presence')
+        .upsert({
+          user_id: user.id,
+          meeting_id: meetingId,
+          last_active_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,meeting_id' });
+    } catch (error) {
+      console.error('Error updating chat presence:', error);
+    }
+  }, [user, meetingId, canChat]);
+
+  const removeChatPresence = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      await supabase
+        .from('user_chat_presence')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('meeting_id', meetingId);
+    } catch (error) {
+      console.error('Error removing chat presence:', error);
+    }
+  }, [user, meetingId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,6 +141,10 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
     
     // Mark messages as read when entering chat
     markAsRead(meetingId);
+    
+    // Update presence immediately and set up interval
+    updateChatPresence();
+    presenceIntervalRef.current = setInterval(updateChatPresence, 20000); // Update every 20 seconds
 
     // Subscribe to realtime messages
     const channel = supabase
@@ -159,11 +195,18 @@ export function MeetingChat({ meetingId, isCreator, isParticipant }: MeetingChat
     channelRef.current = channel;
 
     return () => {
+      // Clean up presence when leaving chat
+      removeChatPresence();
+      
+      if (presenceIntervalRef.current) {
+        clearInterval(presenceIntervalRef.current);
+      }
+      
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [meetingId, user, canChat, fetchMessages, fetchProfiles, profiles, markAsRead]);
+  }, [meetingId, user, canChat, fetchMessages, fetchProfiles, profiles, markAsRead, updateChatPresence, removeChatPresence]);
 
   useEffect(() => {
     scrollToBottom();

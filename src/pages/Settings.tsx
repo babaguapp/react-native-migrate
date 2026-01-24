@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useCamera } from "@/hooks/useCamera";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export default function Settings() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const { isNative, promptPhotoSource, photoToBlob, loading: cameraLoading } = useCamera();
 
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [showEditNameDialog, setShowEditNameDialog] = useState(false);
@@ -178,6 +180,62 @@ export default function Settings() {
     }
   }, [profile]);
 
+  // Handle native camera photo upload
+  const handleNativePhotoUpload = async () => {
+    if (!user) return;
+
+    const photo = await promptPhotoSource();
+    if (!photo) return;
+
+    setIsUploadingAvatar(true);
+
+    try {
+      const blob = await photoToBlob(photo);
+      if (!blob) throw new Error("Failed to convert photo");
+
+      const fileExt = photo.format || 'jpeg';
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("user-photos")
+        .upload(fileName, blob, { upsert: true, contentType: `image/${fileExt}` });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("user-photos")
+        .getPublicUrl(fileName);
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: urlData.publicUrl + "?t=" + Date.now() })
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Zapisano",
+        description: "Zdjęcie profilowe zostało zmienione",
+      });
+
+      // Refresh page to show new avatar
+      window.location.reload();
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zmienić zdjęcia",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  // Handle web file input upload
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -242,6 +300,15 @@ export default function Settings() {
       });
     } finally {
       setIsUploadingAvatar(false);
+    }
+  };
+
+  // Combined handler - uses native camera on mobile, file input on web
+  const handleAvatarClick = () => {
+    if (isNative) {
+      handleNativePhotoUpload();
+    } else {
+      avatarInputRef.current?.click();
     }
   };
 
@@ -326,8 +393,8 @@ export default function Settings() {
         {/* Avatar Section */}
         <div className="flex justify-center py-6">
           <button
-            onClick={() => avatarInputRef.current?.click()}
-            disabled={isUploadingAvatar}
+            onClick={handleAvatarClick}
+            disabled={isUploadingAvatar || cameraLoading}
             className="relative"
           >
             <Avatar className="h-28 w-28">
@@ -337,7 +404,7 @@ export default function Settings() {
               </AvatarFallback>
             </Avatar>
             <div className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg">
-              {isUploadingAvatar ? (
+              {isUploadingAvatar || cameraLoading ? (
                 <Loader2 className="h-4 w-4 text-primary-foreground animate-spin" />
               ) : (
                 <Camera className="h-4 w-4 text-primary-foreground" />

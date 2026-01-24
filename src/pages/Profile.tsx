@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useCamera } from "@/hooks/useCamera";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -15,6 +16,7 @@ import {
   Loader2,
   Image as ImageIcon,
   Trash2,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -30,6 +32,7 @@ export default function Profile() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isNative, promptPhotoSource, photoToBlob, loading: cameraLoading } = useCamera();
 
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,6 +64,61 @@ export default function Profile() {
     }
   };
 
+  // Handle native camera photo upload
+  const handleNativePhotoUpload = async () => {
+    if (!user) return;
+
+    const photo = await promptPhotoSource();
+    if (!photo) return;
+
+    setIsUploading(true);
+
+    try {
+      const blob = await photoToBlob(photo);
+      if (!blob) throw new Error("Failed to convert photo");
+
+      const fileExt = photo.format || 'jpeg';
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("user-photos")
+        .upload(fileName, blob, { contentType: `image/${fileExt}` });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("user-photos")
+        .getPublicUrl(fileName);
+
+      // Save to database
+      const { error: dbError } = await supabase.from("user_photos").insert({
+        user_id: user.id,
+        photo_url: urlData.publicUrl,
+      });
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Dodano",
+        description: "Zdjęcie zostało dodane",
+      });
+
+      fetchPhotos();
+    } catch (error) {
+      console.error("Error uploading photo:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się dodać zdjęcia",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle web file input upload
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -129,6 +187,15 @@ export default function Profile() {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  };
+
+  // Combined handler - uses native camera on mobile, file input on web
+  const handleAddPhotoClick = () => {
+    if (isNative) {
+      handleNativePhotoUpload();
+    } else {
+      fileInputRef.current?.click();
     }
   };
 
@@ -243,12 +310,14 @@ export default function Profile() {
         <div className="mt-8">
           <div className="flex items-center gap-3 mb-4">
             <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
+              onClick={handleAddPhotoClick}
+              disabled={isUploading || cameraLoading}
               className="w-12 h-12 bg-muted/50 border border-border rounded-lg flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50"
             >
-              {isUploading ? (
+              {isUploading || cameraLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : isNative ? (
+                <Camera className="h-5 w-5 text-muted-foreground" />
               ) : (
                 <Plus className="h-5 w-5 text-muted-foreground" />
               )}

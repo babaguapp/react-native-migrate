@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { X, Crown, Bell, Settings, HelpCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -20,6 +21,13 @@ const settingsItems = [
 ];
 
 export function SideMenu({ isOpen, onClose }: SideMenuProps) {
+  const navigate = useNavigate();
+
+  const handleNavigate = (path: string) => {
+    onClose();
+    navigate(path);
+  };
+
   return (
     <>
       {/* Overlay */}
@@ -54,6 +62,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
               {menuItems.map((item) => (
                 <button
                   key={item.path}
+                  onClick={() => handleNavigate(item.path)}
                   className="flex items-center gap-4 w-full px-4 py-3 text-foreground hover:bg-muted rounded-lg transition-colors"
                 >
                   {item.icon}
@@ -68,6 +77,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
               {settingsItems.map((item) => (
                 <button
                   key={item.path}
+                  onClick={() => handleNavigate(item.path)}
                   className="flex items-center gap-4 w-full px-4 py-3 text-foreground hover:bg-muted rounded-lg transition-colors"
                 >
                   {item.icon}

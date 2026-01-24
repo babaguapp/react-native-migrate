@@ -314,6 +314,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notification_preferences: {
+        Row: {
+          all_notifications: boolean
+          created_at: string
+          id: string
+          meeting_changes: boolean
+          meeting_suggestions: boolean
+          new_messages: boolean
+          rating_requests: boolean
+          reminders: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          all_notifications?: boolean
+          created_at?: string
+          id?: string
+          meeting_changes?: boolean
+          meeting_suggestions?: boolean
+          new_messages?: boolean
+          rating_requests?: boolean
+          reminders?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          all_notifications?: boolean
+          created_at?: string
+          id?: string
+          meeting_changes?: boolean
+          meeting_suggestions?: boolean
+          new_messages?: boolean
+          rating_requests?: boolean
+          reminders?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_photos: {
         Row: {
           caption: string | null

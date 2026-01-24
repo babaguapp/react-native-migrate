@@ -43,15 +43,133 @@ export default function Settings() {
   const [editedBio, setEditedBio] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Notification settings (local state for now)
+  // Notification settings
   const [notifications, setNotifications] = useState({
-    all: false,
+    all: true,
     meetingChanges: true,
     meetingSuggestions: true,
     newMessages: true,
     ratingRequests: true,
     reminders: true,
   });
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
+
+  // Load notification preferences from database
+  useEffect(() => {
+    const loadNotificationPreferences = async () => {
+      if (!user) {
+        setIsLoadingPreferences(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('user_notification_preferences')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          // PGRST116 = no rows returned
+          console.error('Error loading preferences:', error);
+          return;
+        }
+
+        if (data) {
+          setNotifications({
+            all: data.all_notifications,
+            meetingChanges: data.meeting_changes,
+            meetingSuggestions: data.meeting_suggestions,
+            newMessages: data.new_messages,
+            ratingRequests: data.rating_requests,
+            reminders: data.reminders,
+          });
+        } else {
+          // Create default preferences if not exist
+          await supabase.from('user_notification_preferences').insert({
+            user_id: user.id,
+            all_notifications: true,
+            meeting_changes: true,
+            meeting_suggestions: true,
+            new_messages: true,
+            rating_requests: true,
+            reminders: true,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading notification preferences:', error);
+      } finally {
+        setIsLoadingPreferences(false);
+      }
+    };
+
+    loadNotificationPreferences();
+  }, [user]);
+
+  // Save notification preferences to database
+  const saveNotificationPreferences = async (newPrefs: typeof notifications) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_notification_preferences')
+        .update({
+          all_notifications: newPrefs.all,
+          meeting_changes: newPrefs.meetingChanges,
+          meeting_suggestions: newPrefs.meetingSuggestions,
+          new_messages: newPrefs.newMessages,
+          rating_requests: newPrefs.ratingRequests,
+          reminders: newPrefs.reminders,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving notification preferences:', error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zapisać ustawień powiadomień",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle "All notifications" toggle
+  const handleAllNotificationsChange = (checked: boolean) => {
+    const newPrefs = {
+      all: checked,
+      meetingChanges: checked,
+      meetingSuggestions: checked,
+      newMessages: checked,
+      ratingRequests: checked,
+      reminders: checked,
+    };
+    setNotifications(newPrefs);
+    saveNotificationPreferences(newPrefs);
+  };
+
+  // Handle individual notification toggle
+  const handleIndividualNotificationChange = (
+    key: keyof Omit<typeof notifications, 'all'>,
+    checked: boolean
+  ) => {
+    const newPrefs = { ...notifications, [key]: checked };
+    
+    // Check if all individual toggles are on
+    const allOn = 
+      (key === 'meetingChanges' ? checked : newPrefs.meetingChanges) &&
+      (key === 'meetingSuggestions' ? checked : newPrefs.meetingSuggestions) &&
+      (key === 'newMessages' ? checked : newPrefs.newMessages) &&
+      (key === 'ratingRequests' ? checked : newPrefs.ratingRequests) &&
+      (key === 'reminders' ? checked : newPrefs.reminders);
+    
+    // If any toggle is off, "all" should be off too
+    // If all toggles are on, "all" should be on
+    newPrefs.all = allOn;
+    
+    setNotifications(newPrefs);
+    saveNotificationPreferences(newPrefs);
+  };
 
   useEffect(() => {
     if (profile) {
@@ -302,21 +420,20 @@ export default function Settings() {
         {/* USTAWIENIA POWIADOMIEŃ Section */}
         <div className="px-4 mt-6">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Ustawienia powiadomień
+            Ustawienia powiadomień push
           </p>
           <div className="bg-card rounded-xl border border-border divide-y divide-border">
             <div className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
-                  <Bell className="h-4 w-4 text-white" />
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                  <Bell className="h-4 w-4 text-primary-foreground" />
                 </div>
-                <span className="text-foreground">Wszystkie powiadomienia</span>
+                <span className="text-foreground font-medium">Wszystkie powiadomienia</span>
               </div>
               <Switch
                 checked={notifications.all}
-                onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, all: checked })
-                }
+                onCheckedChange={handleAllNotificationsChange}
+                disabled={isLoadingPreferences}
               />
             </div>
             <div className="flex items-center justify-between px-4 py-3">
@@ -329,8 +446,9 @@ export default function Settings() {
               <Switch
                 checked={notifications.meetingChanges}
                 onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, meetingChanges: checked })
+                  handleIndividualNotificationChange('meetingChanges', checked)
                 }
+                disabled={isLoadingPreferences}
               />
             </div>
             <div className="flex items-center justify-between px-4 py-3">
@@ -343,8 +461,9 @@ export default function Settings() {
               <Switch
                 checked={notifications.meetingSuggestions}
                 onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, meetingSuggestions: checked })
+                  handleIndividualNotificationChange('meetingSuggestions', checked)
                 }
+                disabled={isLoadingPreferences}
               />
             </div>
             <div className="flex items-center justify-between px-4 py-3">
@@ -357,8 +476,9 @@ export default function Settings() {
               <Switch
                 checked={notifications.newMessages}
                 onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, newMessages: checked })
+                  handleIndividualNotificationChange('newMessages', checked)
                 }
+                disabled={isLoadingPreferences}
               />
             </div>
             <div className="flex items-center justify-between px-4 py-3">
@@ -371,8 +491,9 @@ export default function Settings() {
               <Switch
                 checked={notifications.ratingRequests}
                 onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, ratingRequests: checked })
+                  handleIndividualNotificationChange('ratingRequests', checked)
                 }
+                disabled={isLoadingPreferences}
               />
             </div>
             <div className="flex items-center justify-between px-4 py-3">
@@ -385,11 +506,15 @@ export default function Settings() {
               <Switch
                 checked={notifications.reminders}
                 onCheckedChange={(checked) =>
-                  setNotifications({ ...notifications, reminders: checked })
+                  handleIndividualNotificationChange('reminders', checked)
                 }
+                disabled={isLoadingPreferences}
               />
             </div>
           </div>
+          <p className="text-xs text-muted-foreground mt-2 px-1">
+            Powiadomienia wewnętrzne w aplikacji są zawsze włączone.
+          </p>
         </div>
 
         {/* Logout Button */}
@@ -402,27 +527,27 @@ export default function Settings() {
             Wyloguj się
           </Button>
         </div>
+
+        {/* Spacing at bottom */}
+        <div className="h-24" />
       </div>
 
       {/* Edit Name Dialog */}
       <Dialog open={showEditNameDialog} onOpenChange={setShowEditNameDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Imię i nazwisko</DialogTitle>
+            <DialogTitle>Edytuj imię i nazwisko</DialogTitle>
           </DialogHeader>
           <Input
             value={editedName}
             onChange={(e) => setEditedName(e.target.value)}
-            placeholder="Wpisz imię i nazwisko"
+            placeholder="Imię i nazwisko"
           />
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowEditNameDialog(false)}
-            >
+            <Button variant="outline" onClick={() => setShowEditNameDialog(false)}>
               Anuluj
             </Button>
-            <Button onClick={handleSaveName} disabled={isSaving || !editedName.trim()}>
+            <Button onClick={handleSaveName} disabled={isSaving}>
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Zapisz"}
             </Button>
           </DialogFooter>
@@ -433,23 +558,16 @@ export default function Settings() {
       <Dialog open={showEditBioDialog} onOpenChange={setShowEditBioDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Bio (opis profilu)</DialogTitle>
+            <DialogTitle>Edytuj bio</DialogTitle>
           </DialogHeader>
           <Textarea
             value={editedBio}
             onChange={(e) => setEditedBio(e.target.value)}
             placeholder="Napisz coś o sobie..."
             rows={4}
-            maxLength={150}
           />
-          <p className="text-xs text-muted-foreground text-right">
-            {editedBio.length}/150
-          </p>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowEditBioDialog(false)}
-            >
+            <Button variant="outline" onClick={() => setShowEditBioDialog(false)}>
               Anuluj
             </Button>
             <Button onClick={handleSaveBio} disabled={isSaving}>

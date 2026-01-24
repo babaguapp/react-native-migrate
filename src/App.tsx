@@ -12,6 +12,7 @@ import MeetingDetails from "./pages/MeetingDetails";
 import MeetingCandidates from "./pages/MeetingCandidates";
 import MyEvents from "./pages/MyEvents";
 import Messages from "./pages/Messages";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Messages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

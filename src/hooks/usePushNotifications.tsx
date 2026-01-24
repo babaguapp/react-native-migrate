@@ -165,12 +165,22 @@ export function usePushNotifications() {
         console.log('Push notification action performed: ', action);
         // Handle navigation based on notification data
         const data = action.notification.data;
-        if (data?.meetingId) {
-          // Navigate to meeting details
-          window.location.href = `/meetings/${data.meetingId}`;
-        } else if (data?.type === 'message') {
-          // Navigate to messages
-          window.location.href = '/messages';
+        const meetingId = data?.meeting_id;
+        const type = data?.type;
+        
+        if (!meetingId) return;
+        
+        // Navigate to appropriate screen based on notification type
+        switch (type) {
+          case 'new_message':
+            window.location.href = `/meeting/${meetingId}?tab=chat`;
+            break;
+          case 'join_request':
+            window.location.href = `/meeting/${meetingId}/candidates`;
+            break;
+          default:
+            window.location.href = `/meeting/${meetingId}`;
+            break;
         }
       }
     );

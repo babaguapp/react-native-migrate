@@ -10,7 +10,8 @@ export type NotificationType =
   | 'became_organizer'
   | 'application_accepted'
   | 'application_rejected'
-  | 'removed_from_meeting';
+  | 'removed_from_meeting'
+  | 'new_message';
 
 export async function sendNotification(
   targetUserId: string,

@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, Trash2, Users, UserPlus, UserMinus, Edit, XCircle, Crown, CheckCircle, Ban } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Users, UserPlus, UserMinus, Edit, XCircle, Crown, CheckCircle, Ban, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -24,6 +24,7 @@ const notificationIcons: Record<string, React.ReactNode> = {
   'application_accepted': <CheckCircle className="h-4 w-4 text-green-600" />,
   'application_rejected': <Ban className="h-4 w-4 text-destructive" />,
   'removed_from_meeting': <UserMinus className="h-4 w-4 text-destructive" />,
+  'new_message': <MessageSquare className="h-4 w-4 text-blue-500" />,
 };
 
 function NotificationItem({ 
@@ -106,8 +107,20 @@ export function NotificationDropdown() {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    if (notification.meeting_id) {
-      navigate(`/meeting/${notification.meeting_id}`);
+    
+    if (!notification.meeting_id) return;
+    
+    // Navigate to appropriate screen based on notification type
+    switch (notification.type) {
+      case 'new_message':
+        navigate(`/meeting/${notification.meeting_id}?tab=chat`);
+        break;
+      case 'join_request':
+        navigate(`/meeting/${notification.meeting_id}/candidates`);
+        break;
+      default:
+        navigate(`/meeting/${notification.meeting_id}`);
+        break;
     }
   };
 

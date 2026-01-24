@@ -31,6 +31,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { MeetingChat } from "@/components/meetings/MeetingChat";
+import {
+  notifyJoinRequest,
+  notifyParticipantLeft,
+  notifyMeetingCancelled,
+  notifyMeetingUpdated,
+  notifyBecameOrganizer,
+  notifyOrganizerChanged,
+} from "@/lib/notifications";
 
 interface Participant {
   user_id: string;
@@ -180,6 +188,15 @@ const MeetingDetails = () => {
 
       if (error) throw error;
 
+      // Notify accepted participants about the update
+      const acceptedParticipantIds = meeting.participants
+        .filter((p) => p.status === "accepted")
+        .map((p) => p.user_id);
+
+      if (acceptedParticipantIds.length > 0) {
+        await notifyMeetingUpdated(acceptedParticipantIds, meeting.id);
+      }
+
       setMeeting({ ...meeting, description: editedDescription });
       setIsEditingDescription(false);
       toast({
@@ -199,9 +216,81 @@ const MeetingDetails = () => {
   };
 
   const handleCancelMeeting = async () => {
-    if (!meeting) return;
+    if (!meeting || !user) return;
 
     try {
+      const acceptedParticipants = meeting.participants.filter(
+        (p) => p.status === "accepted"
+      );
+
+      // If there are accepted participants, transfer ownership
+      if (acceptedParticipants.length > 0) {
+        // Find the earliest joined participant (they're already ordered by joined_at in the query)
+        // We need to fetch with joined_at to find the earliest
+        const { data: earliestParticipant, error: fetchError } = await supabase
+          .from("meeting_participants")
+          .select("user_id, profile:profiles!meeting_participants_user_id_fkey(full_name)")
+          .eq("meeting_id", meeting.id)
+          .eq("status", "accepted")
+          .order("joined_at", { ascending: true })
+          .limit(1)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        if (earliestParticipant) {
+          // Update meeting creator
+          const { error: updateError } = await supabase
+            .from("meetings")
+            .update({ creator_id: earliestParticipant.user_id })
+            .eq("id", meeting.id);
+
+          if (updateError) throw updateError;
+
+          // Remove new organizer from participants table
+          await supabase
+            .from("meeting_participants")
+            .delete()
+            .eq("meeting_id", meeting.id)
+            .eq("user_id", earliestParticipant.user_id);
+
+          // Notify the new organizer
+          await notifyBecameOrganizer(earliestParticipant.user_id, meeting.id);
+
+          // Notify other participants about organizer change
+          const otherParticipantIds = acceptedParticipants
+            .filter((p) => p.user_id !== earliestParticipant.user_id)
+            .map((p) => p.user_id);
+
+          if (otherParticipantIds.length > 0) {
+            const newOrganizerName = (earliestParticipant.profile as { full_name: string }).full_name;
+            await notifyOrganizerChanged(
+              otherParticipantIds,
+              newOrganizerName,
+              meeting.id,
+              earliestParticipant.user_id
+            );
+          }
+
+          toast({
+            title: "Opuściłeś spotkanie",
+            description: "Spotkanie zostało przekazane innemu uczestnikowi",
+          });
+          navigate("/my-events");
+          return;
+        }
+      }
+
+      // No accepted participants - actually cancel the meeting
+      // First notify all pending participants
+      const pendingParticipantIds = meeting.participants
+        .filter((p) => p.status === "pending")
+        .map((p) => p.user_id);
+
+      if (pendingParticipantIds.length > 0) {
+        await notifyMeetingCancelled(pendingParticipantIds, meeting.id);
+      }
+
       const { error } = await supabase
         .from("meetings")
         .delete()
@@ -238,6 +327,22 @@ const MeetingDetails = () => {
 
       if (error) throw error;
 
+      // Notify organizer about join request
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile) {
+        await notifyJoinRequest(
+          meeting.creator_id,
+          profile.full_name,
+          meeting.id,
+          user.id
+        );
+      }
+
       toast({
         title: "Zgłoszenie wysłane",
         description: "Czekaj na akceptację organizatora",
@@ -257,6 +362,13 @@ const MeetingDetails = () => {
     if (!meeting || !user) return;
 
     try {
+      // Get my profile name for notification
+      const { data: myProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .single();
+
       const { error } = await supabase
         .from("meeting_participants")
         .delete()
@@ -264,6 +376,22 @@ const MeetingDetails = () => {
         .eq("user_id", user.id);
 
       if (error) throw error;
+
+      // Notify organizer and other participants
+      const otherParticipantIds = meeting.participants
+        .filter((p) => p.status === "accepted" && p.user_id !== user.id)
+        .map((p) => p.user_id);
+
+      const allToNotify = [meeting.creator_id, ...otherParticipantIds];
+
+      if (myProfile) {
+        await notifyParticipantLeft(
+          allToNotify,
+          myProfile.full_name,
+          meeting.id,
+          user.id
+        );
+      }
 
       toast({
         title: "Opuściłeś spotkanie",

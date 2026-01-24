@@ -1,9 +1,10 @@
-import { Menu, Bell } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BaBaGuLogo } from '@/components/BaBaGuLogo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -28,9 +29,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <BaBaGuLogo size="sm" />
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon">
-            <Bell className="w-6 h-6" />
-          </Button>
+          <NotificationDropdown />
           <button 
             className="relative"
             onClick={() => navigate('/profile')}

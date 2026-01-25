@@ -27,6 +27,7 @@ export default function Meetings() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [locationChecked, setLocationChecked] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { 
@@ -35,7 +36,8 @@ export default function Meetings() {
     hasLocation, 
     setManualLocation,
     requestLocation,
-    loading: geoLoading 
+    loading: geoLoading,
+    permissionDenied
   } = useGeolocation();
 
   const requestNotificationPermission = async () => {
@@ -187,26 +189,35 @@ export default function Meetings() {
     }
   };
 
-  // Initial load - check for location and fetch meetings
+  // Initial load - request notification permission once
   useEffect(() => {
-    const init = async () => {
-      // Request notification permission (skip if not supported)
+    const requestNotifications = async () => {
       try {
         await requestNotificationPermission();
       } catch (e) {
         console.warn('Notification permission not available:', e);
       }
-      
-      if (hasLocation && latitude && longitude) {
-        await fetchMeetingsWithLocation(latitude, longitude);
-      } else {
-        // Show location prompt - navigator.permissions API is not reliable in WebView/Capacitor
-        setShowLocationPrompt(true);
-      }
     };
-    
-    init();
+    requestNotifications();
   }, []);
+
+  // Check location status after hook initializes (cache loaded)
+  useEffect(() => {
+    // Wait for geoLoading to finish (cache check complete)
+    if (geoLoading) return;
+    
+    // Only check once per mount
+    if (locationChecked) return;
+    setLocationChecked(true);
+
+    if (hasLocation && latitude && longitude) {
+      // User already has location (from cache or previous grant) - fetch meetings
+      fetchMeetingsWithLocation(latitude, longitude);
+    } else {
+      // No cached location - show prompt only once
+      setShowLocationPrompt(true);
+    }
+  }, [geoLoading, hasLocation, latitude, longitude, locationChecked]);
 
   // Re-fetch when location changes
   useEffect(() => {

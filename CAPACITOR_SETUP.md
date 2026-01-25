@@ -154,9 +154,30 @@ Add these lines inside `<manifest>` tag, before `<application>`:
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ```
 
-### iOS: `ios/App/App/Info.plist`
+### iOS: Using Trapeze (No Xcode Required!)
 
-Add these keys inside the `<dict>` section:
+You can configure iOS capabilities without opening Xcode using Trapeze:
+
+```bash
+# After adding iOS platform
+npx cap add ios
+
+# Run the setup script
+node scripts/setup-ios-capabilities.js
+```
+
+This automatically:
+- Adds Push Notifications entitlement (aps-environment)
+- Configures Info.plist with location/camera descriptions
+
+**Still required (in Apple Developer Portal):**
+1. Enable "Push Notifications" for your App ID at https://developer.apple.com/account/resources/identifiers
+2. Generate APNs Authentication Key and upload to Firebase Console
+3. Download `GoogleService-Info.plist` from Firebase and place in `ios/App/App/`
+
+### iOS: Manual Setup (with Xcode)
+
+If you prefer manual setup, add these keys to `ios/App/App/Info.plist`:
 
 ```xml
 <!-- Location -->
@@ -171,6 +192,11 @@ Add these keys inside the `<dict>` section:
 <key>NSPhotoLibraryUsageDescription</key>
 <string>BaBaGu needs photo library access for profile photos.</string>
 ```
+
+And enable Push Notifications in Xcode:
+1. Open `ios/App/App.xcworkspace` in Xcode
+2. Select the App target → Signing & Capabilities
+3. Click "+ Capability" → Push Notifications
 
 ---
 

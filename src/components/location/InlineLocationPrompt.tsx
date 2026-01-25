@@ -27,6 +27,7 @@ export function InlineLocationPrompt({ onLocationSet, onSkip }: InlineLocationPr
   const [geocoding, setGeocoding] = useState(false);
   const [showManualInput, setShowManualInput] = useState(false);
   const [gpsRequested, setGpsRequested] = useState(false);
+  const [retryingAfterDenied, setRetryingAfterDenied] = useState(false);
 
   // Watch for location changes after GPS request
   useEffect(() => {
@@ -37,19 +38,21 @@ export function InlineLocationPrompt({ onLocationSet, onSkip }: InlineLocationPr
         description: 'Twoja lokalizacja została ustawiona',
       });
       setGpsRequested(false);
+      setRetryingAfterDenied(false);
     }
   }, [gpsRequested, hasLocation, latitude, longitude, gpsLoading, onLocationSet, toast]);
 
-  // Show manual input if permission was denied
+  // Show manual input if permission was denied (but not if user is retrying)
   useEffect(() => {
-    if (permissionDenied && gpsRequested) {
+    if (permissionDenied && gpsRequested && !retryingAfterDenied) {
       setShowManualInput(true);
       setGpsRequested(false);
     }
-  }, [permissionDenied, gpsRequested]);
+  }, [permissionDenied, gpsRequested, retryingAfterDenied]);
 
   const handleGpsRequest = () => {
     setGpsRequested(true);
+    setRetryingAfterDenied(permissionDenied);
     requestLocation();
   };
 
@@ -142,8 +145,19 @@ export function InlineLocationPrompt({ onLocationSet, onSkip }: InlineLocationPr
         {(showManualInput || permissionDenied) && (
           <div className="space-y-3">
             {permissionDenied && (
-              <div className="bg-muted p-3 rounded-lg text-sm text-muted-foreground">
-                <p>Dostęp do GPS został zablokowany. Możesz wprowadzić swoje miasto ręcznie.</p>
+              <div className="bg-muted p-3 rounded-lg text-sm text-muted-foreground space-y-2">
+                <p>Dostęp do GPS został zablokowany.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGpsRequest}
+                  disabled={gpsLoading}
+                  className="w-full"
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  {gpsLoading ? 'Próbuję ponownie...' : 'Spróbuj ponownie uzyskać dostęp'}
+                </Button>
+                <p className="text-xs">Lub wprowadź miasto ręcznie:</p>
               </div>
             )}
             

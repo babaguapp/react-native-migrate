@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { getActivityImage } from '@/lib/activityImages';
 
 interface MyEventCardProps {
   meeting: {
@@ -25,6 +26,10 @@ interface MyEventCardProps {
 
 export function MyEventCard({ meeting, badge, badgeVariant, isPast = false, onClick }: MyEventCardProps) {
   const formattedDate = format(new Date(meeting.meeting_date), 'd/M/yyyy', { locale: pl });
+  
+  // Use activity image from assets, fallback to meeting.image_url
+  const activityImage = getActivityImage(meeting.activity_name);
+  const displayImage = activityImage || meeting.image_url;
 
   return (
     <Card 
@@ -48,10 +53,10 @@ export function MyEventCard({ meeting, badge, badgeVariant, isPast = false, onCl
         </Badge>
       </div>
 
-      {meeting.image_url && (
+      {displayImage && (
         <div className="aspect-video relative overflow-hidden">
           <img
-            src={meeting.image_url}
+            src={displayImage}
             alt={meeting.activity_name}
             className={cn("w-full h-full object-cover", isPast && "grayscale")}
           />

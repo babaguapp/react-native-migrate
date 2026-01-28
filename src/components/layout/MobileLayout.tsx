@@ -34,7 +34,7 @@ export function MobileLayout({ children, title, showBack }: MobileLayoutProps) {
       )}
       <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       
-      <main className="flex-1 pt-16 pb-20 overflow-auto">
+      <main className={`flex-1 pb-20 overflow-auto ${showBack ? 'header-offset-small' : 'header-offset'}`}>
         {children}
       </main>
       

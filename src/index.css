@@ -135,6 +135,16 @@
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
 }
 
+/* Dynamic header offset that accounts for safe area */
+.header-offset {
+  padding-top: calc(64px + env(safe-area-inset-top, 0px));
+}
+
+/* For pages with back button (smaller header) */
+.header-offset-small {
+  padding-top: calc(56px + env(safe-area-inset-top, 0px));
+}
+
 /* Hide scrollbar but keep functionality */
 .no-scrollbar {
   -ms-overflow-style: none;
@@ -142,4 +152,9 @@
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Toast positioning with safe area */
+[data-sonner-toaster] {
+  top: calc(env(safe-area-inset-top, 0px) + 16px) !important;
 }

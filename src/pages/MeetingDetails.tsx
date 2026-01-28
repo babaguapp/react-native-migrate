@@ -14,6 +14,7 @@ import { pl } from "date-fns/locale";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { MeetingChat } from "@/components/meetings/MeetingChat";
 import { notifyJoinRequest, notifyParticipantLeft, notifyMeetingCancelled, notifyMeetingUpdated, notifyBecameOrganizer, notifyOrganizerChanged, notifyRemovedFromMeeting } from "@/lib/notifications";
+import { getActivityImage } from "@/lib/activityImages";
 interface Participant {
   user_id: string;
   status: string;
@@ -440,13 +441,19 @@ const MeetingDetails = () => {
           <TabsContent value="info" className="flex-1 overflow-auto">
             <div className="px-4 pb-4">
               {/* Image */}
-              <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden mt-4 bg-muted shadow-lg">
-                {meeting.image_url ? <img src={meeting.image_url} alt={meeting.activity.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/20">
-                    <span className="text-6xl">
-                      {meeting.activity.category.icon || "📅"}
-                    </span>
-                  </div>}
-              </div>
+              {(() => {
+                const activityImage = getActivityImage(meeting.activity.name);
+                const displayImage = activityImage || meeting.image_url;
+                return (
+                  <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden mt-4 bg-muted shadow-lg">
+                    {displayImage ? <img src={displayImage} alt={meeting.activity.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/20">
+                        <span className="text-6xl">
+                          {meeting.activity.category.icon || "📅"}
+                        </span>
+                      </div>}
+                  </div>
+                );
+              })()}
 
               {/* Title Row */}
               <div className="flex justify-between items-start mt-5">

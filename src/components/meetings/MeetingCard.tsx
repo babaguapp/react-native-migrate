@@ -2,6 +2,7 @@ import { Users, Calendar, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { getActivityImage } from '@/lib/activityImages';
 
 interface MeetingCardProps {
   meeting: {
@@ -20,16 +21,20 @@ interface MeetingCardProps {
 
 export function MeetingCard({ meeting, onClick }: MeetingCardProps) {
   const formattedDate = format(new Date(meeting.meeting_date), 'd/M/yyyy', { locale: pl });
+  
+  // Use activity image from assets, fallback to meeting.image_url
+  const activityImage = getActivityImage(meeting.activity_name);
+  const displayImage = activityImage || meeting.image_url;
 
   return (
     <Card 
       className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
       onClick={onClick}
     >
-      {meeting.image_url && (
+      {displayImage && (
         <div className="aspect-video relative overflow-hidden">
           <img
-            src={meeting.image_url}
+            src={displayImage}
             alt={meeting.activity_name}
             className="w-full h-full object-cover"
           />

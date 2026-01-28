@@ -16,19 +16,41 @@ for (const path in activityImages) {
 }
 
 // Manual aliases for activities with different names in database vs image files
+// Format: 'database activity name' -> 'image file name (with spaces instead of underscores)'
 const activityAliases: Record<string, string> = {
-  // Database name -> Image file name (without extension, spaces instead of underscores)
+  // Direct mappings (DB name differs from file name)
   'beach party': 'impreza na plaży',
   'wyjście do baru': 'do baru',
-  'mecz piłki nożnej': 'piłka nożna',
   'festiwale piwa-wina': 'festiwale piwa',
-  'narty-snowboard': 'narty/snowboard',
-  'siłownia-fitness': 'siłownia/fitness',
+  'impreza kostiumowa': 'imprezy kostiumowe',
+  'impreza tematyczna': 'imprezy kostiumowe',
   'rower (kolarstwo)': 'rower kolarstwo',
   'rower (wyczynowo)': 'rower wyczynowo',
-  'impreza tematyczna': 'imprezy kostiumowe',
-  'impreza charytatywna': 'impreza charytatywna',
-  'impreza firmowa': 'impreza firmowa',
+  'siłownia-fitness': 'siłownia/fitness',
+  'narty-snowboard': 'narty/snowboard',
+  
+  // Similar activities mapped to closest available images
+  'wspólne gotowanie': 'gotowanie',
+  'piknik': 'grill/bbq',
+  'pogadajmy': 'terapia grupowa',
+  'sporty ekstremalne': 'paintball/asg',
+  'sporty wodne': 'pływanie',
+  'spotkanie z autorem': 'wykład',
+  'sprzątanie świata': 'projekty ekologiczne',
+  'stand-up': 'kabaret',
+  'sztuka i malarstwo': 'warsztaty artystyczne',
+  'spotkanie literackie': 'warsztaty teatralne',
+  'spotkanie tematyczne': 'terapia grupowa',
+  'wspólne hobby': 'rękodzieło',
+  'wieczór przy winie': 'festiwale piwa',
+  'kawa na mieście': 'gotowanie',
+  'kolacja': 'gotowanie',
+  'lunch-obiad': 'gotowanie',
+  'lody': 'gotowanie',
+  'śniadanie na mieście': 'gotowanie',
+  'spacer po parku': 'wycieczki piesze',
+  'spacer z psem': 'wycieczki piesze',
+  'wspólne zakupy': 'zwiedzanie miasta',
 };
 
 /**
@@ -67,4 +89,11 @@ export function getActivityImage(activityName: string): string | undefined {
  */
 export function getAllActivityImages(): Record<string, string> {
   return { ...imageMap };
+}
+
+/**
+ * Get list of activities without images (for debugging)
+ */
+export function getActivitiesWithoutImages(activityNames: string[]): string[] {
+  return activityNames.filter(name => !getActivityImage(name));
 }

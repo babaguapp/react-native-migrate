@@ -100,15 +100,15 @@ serve(async (req) => {
 
     if (!data || data.length === 0) {
       console.log('No results found for query:', searchQuery);
+      // Return 200 with empty results instead of 404 to avoid client-side errors
       return new Response(
         JSON.stringify({ 
           latitude: null, 
           longitude: null, 
           displayName: null, 
-          results: [],
-          error: 'Location not found' 
+          results: []
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

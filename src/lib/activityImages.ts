@@ -15,6 +15,22 @@ for (const path in activityImages) {
   imageMap[activityName.toLowerCase()] = activityImages[path].default;
 }
 
+// Manual aliases for activities with different names in database vs image files
+const activityAliases: Record<string, string> = {
+  // Database name -> Image file name (without extension, spaces instead of underscores)
+  'beach party': 'impreza na plaży',
+  'wyjście do baru': 'do baru',
+  'mecz piłki nożnej': 'piłka nożna',
+  'festiwale piwa-wina': 'festiwale piwa',
+  'narty-snowboard': 'narty/snowboard',
+  'siłownia-fitness': 'siłownia/fitness',
+  'rower (kolarstwo)': 'rower kolarstwo',
+  'rower (wyczynowo)': 'rower wyczynowo',
+  'impreza tematyczna': 'imprezy kostiumowe',
+  'impreza charytatywna': 'impreza charytatywna',
+  'impreza firmowa': 'impreza firmowa',
+};
+
 /**
  * Get activity image URL by activity name
  * @param activityName - The name of the activity (e.g., "Gry planszowe", "Badminton")
@@ -23,8 +39,15 @@ for (const path in activityImages) {
 export function getActivityImage(activityName: string): string | undefined {
   if (!activityName) return undefined;
   
-  // Direct match (case-insensitive)
   const normalizedName = activityName.toLowerCase().trim();
+  
+  // Check alias first
+  const aliasKey = activityAliases[normalizedName];
+  if (aliasKey && imageMap[aliasKey]) {
+    return imageMap[aliasKey];
+  }
+  
+  // Direct match (case-insensitive)
   if (imageMap[normalizedName]) {
     return imageMap[normalizedName];
   }

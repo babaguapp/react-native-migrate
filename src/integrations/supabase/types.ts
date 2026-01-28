@@ -200,6 +200,7 @@ export type Database = {
       meetings: {
         Row: {
           activity_id: string
+          address: string | null
           city: string
           created_at: string
           creator_id: string
@@ -215,6 +216,7 @@ export type Database = {
         }
         Insert: {
           activity_id: string
+          address?: string | null
           city: string
           created_at?: string
           creator_id: string
@@ -230,6 +232,7 @@ export type Database = {
         }
         Update: {
           activity_id?: string
+          address?: string | null
           city?: string
           created_at?: string
           creator_id?: string

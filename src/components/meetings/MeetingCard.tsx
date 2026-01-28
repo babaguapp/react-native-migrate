@@ -14,6 +14,7 @@ interface MeetingCardProps {
     max_participants: number;
     meeting_date: string;
     city: string;
+    address?: string | null;
     image_url?: string | null;
   };
   onClick?: () => void;
@@ -64,9 +65,11 @@ export function MeetingCard({ meeting, onClick }: MeetingCardProps) {
             <Calendar className="w-4 h-4" />
             <span>{formattedDate}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <MapPin className="w-4 h-4" />
-            <span>{meeting.city}</span>
+          <div className="flex items-center gap-1 min-w-0 flex-1">
+            <MapPin className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate" title={meeting.address || meeting.city}>
+              {meeting.address ? meeting.address.split(',')[0] : meeting.city}
+            </span>
           </div>
         </div>
       </CardContent>

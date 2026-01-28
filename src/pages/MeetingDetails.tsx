@@ -33,6 +33,7 @@ interface MeetingDetails {
   description: string | null;
   gender_preference: string;
   city: string;
+  address: string | null;
   image_url: string | null;
   activity: {
     name: string;
@@ -465,10 +466,15 @@ const MeetingDetails = () => {
                     {meeting.activity.category.name}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-foreground">
-                    {meeting.city}
+                <div className="text-right max-w-[50%]">
+                  <p className="text-xl font-bold text-foreground truncate" title={meeting.address || meeting.city}>
+                    {meeting.address ? meeting.address.split(',')[0] : meeting.city}
                   </p>
+                  {meeting.address && (
+                    <p className="text-xs text-muted-foreground truncate" title={meeting.address}>
+                      {meeting.city}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     Organizator:{" "}
                     <button onClick={() => navigate(`/user/${meeting.creator_id}`)} className="text-primary font-medium hover:underline">

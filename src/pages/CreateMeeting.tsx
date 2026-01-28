@@ -5,11 +5,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { CalendarIcon, Users, MapPin, FileText } from 'lucide-react';
+import { CalendarIcon, Users, FileText } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { AddressAutocomplete, AddressResult } from '@/components/location/AddressAutocomplete';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -52,7 +53,10 @@ interface Activity {
 const formSchema = z.object({
   category_id: z.string().min(1, 'Wybierz kategorię'),
   activity_id: z.string().min(1, 'Wybierz aktywność'),
+  address: z.string().min(3, 'Wybierz lokalizację z listy').max(255, 'Adres może mieć max. 255 znaków'),
   city: z.string().min(2, 'Miasto musi mieć min. 2 znaki').max(100, 'Miasto może mieć max. 100 znaków'),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
   meeting_date: z.date({ required_error: 'Wybierz datę spotkania' }),
   max_participants: z.number().min(2, 'Min. 2 osoby').max(10, 'Max. 10 osób'),
   gender_preference: z.enum(['female', 'male', 'mixed'], { required_error: 'Wybierz dla kogo jest spotkanie' }),
@@ -75,7 +79,10 @@ export default function CreateMeeting() {
     defaultValues: {
       category_id: '',
       activity_id: '',
+      address: '',
       city: '',
+      latitude: null,
+      longitude: null,
       max_participants: 4,
       gender_preference: 'mixed',
       description: '',
@@ -83,6 +90,25 @@ export default function CreateMeeting() {
   });
 
   const selectedCategoryId = form.watch('category_id');
+  const addressValue = form.watch('address');
+
+  // Handle address selection from autocomplete
+  const handleAddressSelect = (result: AddressResult) => {
+    form.setValue('address', result.displayName, { shouldValidate: true });
+    form.setValue('city', result.city || extractCityFromAddress(result.displayName), { shouldValidate: true });
+    form.setValue('latitude', result.latitude);
+    form.setValue('longitude', result.longitude);
+  };
+
+  // Extract city from full address if not provided
+  const extractCityFromAddress = (displayName: string): string => {
+    const parts = displayName.split(',').map(p => p.trim());
+    // Usually city is the 2nd or 3rd part in Polish addresses
+    if (parts.length >= 3) {
+      return parts[parts.length - 3] || parts[1] || parts[0];
+    }
+    return parts[0] || '';
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -119,36 +145,17 @@ export default function CreateMeeting() {
 
     setIsLoading(true);
     try {
-      // Geocode the city to get coordinates
-      let latitude: number | null = null;
-      let longitude: number | null = null;
-
-      try {
-        const { data: geocodeData, error: geocodeError } = await supabase.functions.invoke('geocode', {
-          body: { city: values.city.trim() },
-        });
-
-        if (!geocodeError && geocodeData?.latitude && geocodeData?.longitude) {
-          latitude = geocodeData.latitude;
-          longitude = geocodeData.longitude;
-        } else {
-          console.warn('Geocoding failed:', geocodeError || 'No coordinates returned');
-        }
-      } catch (geoError) {
-        console.warn('Geocoding error:', geoError);
-        // Continue without coordinates - meeting will still be created
-      }
-
       const { error } = await supabase.from('meetings').insert({
         creator_id: user.id,
         activity_id: values.activity_id,
+        address: values.address.trim(),
         city: values.city.trim(),
         meeting_date: values.meeting_date.toISOString(),
         max_participants: values.max_participants,
         gender_preference: values.gender_preference,
         description: values.description?.trim() || null,
-        latitude,
-        longitude,
+        latitude: values.latitude,
+        longitude: values.longitude,
       });
 
       if (error) throw error;
@@ -232,21 +239,19 @@ export default function CreateMeeting() {
               )}
             />
 
-            {/* City Input */}
+            {/* Address Autocomplete */}
             <FormField
               control={form.control}
-              name="city"
+              name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Miasto
-                  </FormLabel>
+                  <FormLabel>📍 Lokalizacja</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="np. Warszawa" 
-                      {...field} 
-                      className="bg-background"
+                    <AddressAutocomplete
+                      value={field.value}
+                      onChange={field.onChange}
+                      onSelect={handleAddressSelect}
+                      placeholder="Wpisz adres lub nazwę miejsca..."
                     />
                   </FormControl>
                   <FormMessage />

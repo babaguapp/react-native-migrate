@@ -53,8 +53,8 @@ interface Activity {
 const formSchema = z.object({
   category_id: z.string().min(1, 'Wybierz kategorię'),
   activity_id: z.string().min(1, 'Wybierz aktywność'),
-  address: z.string().min(3, 'Wybierz lokalizację z listy').max(255, 'Adres może mieć max. 255 znaków'),
   city: z.string().min(2, 'Miasto musi mieć min. 2 znaki').max(100, 'Miasto może mieć max. 100 znaków'),
+  address: z.string().max(255, 'Adres może mieć max. 255 znaków').optional(),
   latitude: z.number().nullable(),
   longitude: z.number().nullable(),
   meeting_date: z.date({ required_error: 'Wybierz datę spotkania' }),
@@ -79,8 +79,8 @@ export default function CreateMeeting() {
     defaultValues: {
       category_id: '',
       activity_id: '',
-      address: '',
       city: '',
+      address: '',
       latitude: null,
       longitude: null,
       max_participants: 4,
@@ -90,24 +90,35 @@ export default function CreateMeeting() {
   });
 
   const selectedCategoryId = form.watch('category_id');
-  const addressValue = form.watch('address');
+  const cityValue = form.watch('city');
 
-  // Handle address selection from autocomplete
+  // Handle address selection from autocomplete - geocode the full address
   const handleAddressSelect = (result: AddressResult) => {
     form.setValue('address', result.displayName, { shouldValidate: true });
-    form.setValue('city', result.city || extractCityFromAddress(result.displayName), { shouldValidate: true });
     form.setValue('latitude', result.latitude);
     form.setValue('longitude', result.longitude);
   };
 
-  // Extract city from full address if not provided
-  const extractCityFromAddress = (displayName: string): string => {
-    const parts = displayName.split(',').map(p => p.trim());
-    // Usually city is the 2nd or 3rd part in Polish addresses
-    if (parts.length >= 3) {
-      return parts[parts.length - 3] || parts[1] || parts[0];
+  // Geocode city when it changes (for cases without specific address)
+  const geocodeCity = async (city: string) => {
+    if (city.length < 2) return;
+    
+    try {
+      const { data } = await supabase.functions.invoke('geocode', {
+        body: { query: city.trim(), mode: 'city' },
+      });
+      
+      if (data?.latitude && data?.longitude) {
+        // Only update coords if no address is set (address takes priority)
+        const currentAddress = form.getValues('address');
+        if (!currentAddress) {
+          form.setValue('latitude', data.latitude);
+          form.setValue('longitude', data.longitude);
+        }
+      }
+    } catch (error) {
+      console.error('City geocoding error:', error);
     }
-    return parts[0] || '';
   };
 
   useEffect(() => {
@@ -148,7 +159,7 @@ export default function CreateMeeting() {
       const { error } = await supabase.from('meetings').insert({
         creator_id: user.id,
         activity_id: values.activity_id,
-        address: values.address.trim(),
+        address: values.address?.trim() || null,
         city: values.city.trim(),
         meeting_date: values.meeting_date.toISOString(),
         max_participants: values.max_participants,
@@ -239,21 +250,48 @@ export default function CreateMeeting() {
               )}
             />
 
-            {/* Address Autocomplete */}
+            {/* City Input */}
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>🏙️ Miasto</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Wpisz nazwę miasta..."
+                      className="bg-background"
+                      {...field}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        geocodeCity(e.target.value);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Address Input (Optional) */}
             <FormField
               control={form.control}
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>📍 Lokalizacja</FormLabel>
+                  <FormLabel>📍 Adres (opcjonalnie)</FormLabel>
                   <FormControl>
                     <AddressAutocomplete
-                      value={field.value}
+                      value={field.value || ''}
                       onChange={field.onChange}
                       onSelect={handleAddressSelect}
-                      placeholder="Wpisz adres lub nazwę miejsca..."
+                      placeholder="Wpisz dokładny adres lub nazwę miejsca..."
+                      disabled={!cityValue}
                     />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    💡 Dodanie adresu zwiększa widoczność spotkania na mapie
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

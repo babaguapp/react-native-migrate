@@ -95,7 +95,7 @@ export default function MeetingsMap() {
       ? [latitude, longitude] as [number, number]
       : defaultCenter;
 
-    const map = L.map(mapContainerRef.current).setView(center, hasLocation ? 11 : 6);
+    const map = L.map(mapContainerRef.current, { zoomControl: false }).setView(center, hasLocation ? 11 : 6);
     
     // Using CartoDB Positron for a cleaner, less technical look
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {

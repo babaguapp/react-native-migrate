@@ -38,6 +38,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmailSentMessage, setShowEmailSentMessage] = useState(false);
   const navigate = useNavigate();
   const { signUp, signIn } = useAuth();
   const { toast } = useToast();
@@ -90,12 +91,7 @@ export default function Auth() {
     }
 
     setIsSubmitting(false);
-
-    toast({
-      title: 'Konto utworzone!',
-      description: 'Sprawdź swoją skrzynkę e-mail, aby potwierdzić adres.',
-    });
-    navigate('/meetings');
+    setShowEmailSentMessage(true);
   };
 
   const onLogin = async (data: LoginFormData) => {
@@ -116,6 +112,40 @@ export default function Auth() {
 
     navigate('/meetings');
   };
+
+  if (showEmailSentMessage) {
+    return (
+      <div className="mobile-container min-h-screen bg-babagu-light-blue flex flex-col items-center justify-center p-4">
+        <BaBaGuLogo size="lg" className="mb-6" />
+        <Card className="w-full max-w-sm">
+          <CardContent className="pt-6 text-center space-y-4">
+            <div className="w-16 h-16 mx-auto bg-accent/20 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-foreground">Sprawdź swoją skrzynkę!</h2>
+            <p className="text-muted-foreground">
+              Wysłaliśmy link aktywacyjny na Twój adres e-mail. Kliknij w link, aby potwierdzić konto i uzyskać dostęp do aplikacji.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Nie widzisz wiadomości? Sprawdź folder spam.
+            </p>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setShowEmailSentMessage(false);
+                setIsLogin(true);
+              }}
+            >
+              Powrót do logowania
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mobile-container min-h-screen bg-babagu-light-blue flex flex-col items-center justify-center p-4">

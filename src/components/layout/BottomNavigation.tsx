@@ -1,4 +1,4 @@
-import { Users, PlusCircle, Calendar, MessageCircle, Map } from 'lucide-react';
+import { Users, PlusCircle, Calendar, MessageCircle } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
@@ -13,9 +13,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: <Users className="w-6 h-6" />, label: 'Spotkania', path: '/meetings' },
-  { icon: <Map className="w-6 h-6" />, label: 'Mapa', path: '/map' },
   { icon: <PlusCircle className="w-6 h-6" />, label: 'Utwórz', path: '/create' },
-  { icon: <Calendar className="w-6 h-6" />, label: 'Moje', path: '/my-events' },
+  { icon: <Calendar className="w-6 h-6" />, label: 'Moje wydarzenia', path: '/my-events' },
   { icon: <MessageCircle className="w-6 h-6" />, label: 'Wiadomości', path: '/messages', showBadge: true },
 ];
 

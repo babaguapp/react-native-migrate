@@ -364,17 +364,18 @@ export default function Meetings() {
         {/* Floating buttons */}
         <div className="fixed bottom-24 right-4 flex flex-col gap-2">
           <Button 
-            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full w-12 h-12 p-0" 
-            onClick={() => navigate('/map')}
-          >
-            <MapIcon className="w-5 h-5" />
-          </Button>
-          <Button 
             className="bg-secondary hover:bg-secondary/90 shadow-lg rounded-full px-6" 
             onClick={() => navigate('/search')}
           >
             <Search className="w-5 h-5 mr-2" />
             Szukaj
+          </Button>
+          <Button 
+            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full px-6" 
+            onClick={() => navigate('/map')}
+          >
+            <MapIcon className="w-6 h-6 mr-2" />
+            Mapa
           </Button>
         </div>
       </div>

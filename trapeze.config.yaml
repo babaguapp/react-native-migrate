@@ -2,24 +2,16 @@ platforms:
   ios:
     targets:
       App:
-        # Bundle ID
-        bundleId: app.lovable.9fa4bfe56f35495ebe00dc4071dec7d0
-        
-        # Enable Push Notifications capability
+        # Push Notifications capability
         entitlements:
           - aps-environment: development  # Change to 'production' for App Store
         
-        # Info.plist settings for permissions
+        # Info.plist settings
         plist:
-          - file: App/Info.plist
+          - file: Info.plist
             entries:
-              # Location permissions
-              - NSLocationWhenInUseUsageDescription: BaBaGu needs your location to find meetings near you.
-              - NSLocationAlwaysAndWhenInUseUsageDescription: BaBaGu needs your location to find meetings near you.
-              
-              # Camera permissions  
-              - NSCameraUsageDescription: BaBaGu needs camera access for profile photos.
-              - NSPhotoLibraryUsageDescription: BaBaGu needs photo library access for profile photos.
+              # Push notifications background mode
+              - UIBackgroundModes: [remote-notification]
               
               # Deep link URL scheme
               - CFBundleURLTypes:
@@ -29,15 +21,6 @@ platforms:
               
   android:
     manifest:
-      - file: AndroidManifest.xml
-        target: manifest
-        inject:
-          - <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-          - <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-          - <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-          - <uses-permission android:name="android.permission.CAMERA" />
-          - <uses-feature android:name="android.hardware.camera" android:required="false" />
-          - <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
       - file: AndroidManifest.xml
         target: manifest/application/activity
         inject:

@@ -13,16 +13,25 @@ import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons in React-Leaflet
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+// Fix for default marker icons in React-Leaflet with Vite
+const DefaultIcon = L.icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Custom user location icon
+const UserLocationIcon = L.divIcon({
+  className: 'user-location-marker',
+  html: `<div style="width: 16px; height: 16px; background: hsl(var(--primary)); border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
 });
 
 interface MapMeeting {
@@ -247,12 +256,7 @@ export default function MeetingsMap() {
               {hasLocation && latitude && longitude && (
                 <Marker 
                   position={[latitude, longitude]}
-                  icon={L.divIcon({
-                    className: 'user-location-marker',
-                    html: '<div class="w-4 h-4 bg-primary rounded-full border-2 border-white shadow-lg animate-pulse"></div>',
-                    iconSize: [16, 16],
-                    iconAnchor: [8, 8],
-                  })}
+                  icon={UserLocationIcon}
                 >
                   <Popup>
                     <span className="font-medium">Twoja lokalizacja</span>

@@ -14,7 +14,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { icon: <Users className="w-6 h-6" />, label: 'Spotkania', path: '/meetings' },
   { icon: <PlusCircle className="w-6 h-6" />, label: 'Utwórz', path: '/create' },
-  { icon: <Calendar className="w-6 h-6" />, label: 'Moje', path: '/my-events' },
+  { icon: <Calendar className="w-6 h-6" />, label: 'Moje wydarzenia', path: '/my-events' },
   { icon: <MessageCircle className="w-6 h-6" />, label: 'Wiadomości', path: '/messages', showBadge: true },
 ];
 

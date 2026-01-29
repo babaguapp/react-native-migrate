@@ -43,9 +43,8 @@ export function BottomNavigation() {
         <Map className="w-6 h-6" />
       </button>
 
-      <div className="max-w-md mx-auto grid grid-cols-5 items-center py-2">
-        {/* First two items */}
-        {navItems.slice(0, 2).map((item) => {
+      <div className="max-w-md mx-auto flex items-center justify-around py-2 px-2">
+        {navItems.map((item, index) => {
           const isActive = location.pathname === item.path;
           const showBadge = item.showBadge && totalUnread > 0;
           
@@ -54,46 +53,7 @@ export function BottomNavigation() {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                'flex flex-col items-center gap-1 py-2 transition-colors relative',
-                isActive ? 'text-secondary' : 'text-muted-foreground'
-              )}
-            >
-              <div className="relative">
-                {item.icon}
-                {showBadge && (
-                  <Badge 
-                    className="absolute -top-2 -right-2 h-4 min-w-4 flex items-center justify-center p-0 text-[10px] font-bold bg-destructive text-destructive-foreground"
-                  >
-                    {totalUnread > 99 ? '99+' : totalUnread}
-                  </Badge>
-                )}
-              </div>
-              <span className="text-[10px] font-medium leading-tight text-center">
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-
-        {/* Center spacer for floating button */}
-        <div className="flex flex-col items-center gap-1 py-2">
-          <div className="w-6 h-6" />
-          <span className="text-[10px] font-medium leading-tight text-center text-muted-foreground">
-            Mapa
-          </span>
-        </div>
-
-        {/* Last two items */}
-        {navItems.slice(2).map((item) => {
-          const isActive = location.pathname === item.path;
-          const showBadge = item.showBadge && totalUnread > 0;
-          
-          return (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={cn(
-                'flex flex-col items-center gap-1 py-2 transition-colors relative',
+                'flex flex-col items-center gap-1 py-2 transition-colors relative flex-1',
                 isActive ? 'text-secondary' : 'text-muted-foreground'
               )}
             >

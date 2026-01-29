@@ -38,8 +38,9 @@ export default function Meetings() {
     requestLocation,
     loading: geoLoading,
     permissionDenied,
-    wasPromptShown,
-    markPromptShown
+    shouldShowPrompt,
+    markPromptShown,
+    initialized: geoInitialized
   } = useGeolocation();
 
   const requestNotificationPermission = async () => {
@@ -203,34 +204,34 @@ export default function Meetings() {
     requestNotifications();
   }, []);
 
-  // Check location status after hook initializes (cache loaded)
+  // Check location status after hook initializes
   useEffect(() => {
-    // Wait for geoLoading to finish (cache check complete)
-    if (geoLoading) return;
+    // Wait for geolocation hook to initialize
+    if (!geoInitialized || geoLoading) return;
     
     // Only check once per mount
     if (locationChecked) return;
     setLocationChecked(true);
 
     if (hasLocation && latitude && longitude) {
-      // User already has location (from cache or previous grant) - fetch meetings
+      // User already has location - fetch meetings
       fetchMeetingsWithLocation(latitude, longitude);
-    } else if (!wasPromptShown()) {
-      // No cached location and prompt not shown this session - show it
+    } else if (shouldShowPrompt()) {
+      // No location and should show prompt
       setShowLocationPrompt(true);
       markPromptShown();
     } else {
-      // Prompt was already shown this session, just fetch all meetings
+      // Already prompted or has granted permission, fetch all meetings
       fetchAllMeetings();
     }
-  }, [geoLoading, hasLocation, latitude, longitude, locationChecked]);
+  }, [geoInitialized, geoLoading, hasLocation, latitude, longitude, locationChecked]);
 
   // Re-fetch when location changes
   useEffect(() => {
-    if (hasLocation && latitude && longitude && !geoLoading) {
+    if (hasLocation && latitude && longitude && !geoLoading && locationChecked) {
       fetchMeetingsWithLocation(latitude, longitude);
     }
-  }, [hasLocation, latitude, longitude, geoLoading]);
+  }, [hasLocation, latitude, longitude, geoLoading, locationChecked]);
 
   const handleLocationSet = (lat: number, lon: number) => {
     setManualLocation(lat, lon);

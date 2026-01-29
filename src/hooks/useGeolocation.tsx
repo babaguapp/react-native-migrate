@@ -8,6 +8,8 @@ interface GeolocationState {
   error: string | null;
   loading: boolean;
   permissionDenied: boolean;
+  permissionStatus: 'unknown' | 'granted' | 'denied' | 'prompt';
+  initialized: boolean;
 }
 
 interface UseGeolocationOptions {
@@ -18,8 +20,8 @@ interface UseGeolocationOptions {
 }
 
 const STORAGE_KEY = 'user_location';
-const SESSION_PROMPTED_KEY = 'location_prompt_shown';
-const LOCATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+const LOCATION_EXPIRY_MS_WEB = 30 * 60 * 1000; // 30 minutes for web
+// On mobile, location doesn't expire - persists until logout/uninstall
 
 export function useGeolocation(options: UseGeolocationOptions = {}) {
   const {
@@ -33,30 +35,74 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     latitude: null,
     longitude: null,
     error: null,
-    loading: false,
+    loading: true, // Start loading until we check cache/permissions
     permissionDenied: false,
+    permissionStatus: 'unknown',
+    initialized: false,
   });
 
   const isNative = Capacitor.isNativePlatform();
 
-  // Load cached location on mount
-  useEffect(() => {
+  // Check native permission status
+  const checkNativePermission = useCallback(async (): Promise<'granted' | 'denied' | 'prompt'> => {
     try {
-      const cached = localStorage.getItem(STORAGE_KEY);
-      if (cached) {
-        const { latitude, longitude, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < LOCATION_EXPIRY_MS) {
-          setState(prev => ({
-            ...prev,
-            latitude,
-            longitude,
-          }));
-        }
+      const permStatus = await Geolocation.checkPermissions();
+      if (permStatus.location === 'granted' || permStatus.coarseLocation === 'granted') {
+        return 'granted';
       }
-    } catch (e) {
-      console.warn('Failed to load cached location:', e);
+      if (permStatus.location === 'denied' && permStatus.coarseLocation === 'denied') {
+        return 'denied';
+      }
+      return 'prompt';
+    } catch {
+      return 'prompt';
     }
   }, []);
+
+  // Load cached location and check permissions on mount
+  useEffect(() => {
+    const initialize = async () => {
+      let cachedLat: number | null = null;
+      let cachedLon: number | null = null;
+
+      // Load cached location
+      try {
+        const cached = localStorage.getItem(STORAGE_KEY);
+        if (cached) {
+          const { latitude, longitude, timestamp } = JSON.parse(cached);
+          
+          // On native: location doesn't expire
+          // On web: expires after 30 minutes
+          const isValid = isNative || (Date.now() - timestamp < LOCATION_EXPIRY_MS_WEB);
+          
+          if (isValid && latitude && longitude) {
+            cachedLat = latitude;
+            cachedLon = longitude;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load cached location:', e);
+      }
+
+      // Check permission status on native
+      let permStatus: 'unknown' | 'granted' | 'denied' | 'prompt' = 'unknown';
+      if (isNative) {
+        permStatus = await checkNativePermission();
+      }
+
+      setState(prev => ({
+        ...prev,
+        latitude: cachedLat,
+        longitude: cachedLon,
+        loading: false,
+        initialized: true,
+        permissionStatus: permStatus,
+        permissionDenied: permStatus === 'denied',
+      }));
+    };
+
+    initialize();
+  }, [isNative, checkNativePermission]);
 
   // Native Capacitor geolocation
   const requestNativeLocation = useCallback(async () => {
@@ -73,9 +119,10 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
       if (permStatus.location === 'denied' && permStatus.coarseLocation === 'denied') {
         setState(prev => ({
           ...prev,
-          error: 'Dostęp do lokalizacji został zablokowany',
+          error: 'Dostęp do lokalizacji został zablokowany. Włącz go w ustawieniach telefonu.',
           loading: false,
           permissionDenied: true,
+          permissionStatus: 'denied',
         }));
         return;
       }
@@ -88,7 +135,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
 
       const { latitude, longitude } = position.coords;
 
-      // Cache location
+      // Cache location (no expiry on native)
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           latitude,
@@ -99,21 +146,25 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
         console.warn('Failed to cache location:', e);
       }
 
-      setState({
+      setState(prev => ({
+        ...prev,
         latitude,
         longitude,
         error: null,
         loading: false,
         permissionDenied: false,
-      });
+        permissionStatus: 'granted',
+      }));
     } catch (error: any) {
       console.error('Native geolocation error:', error);
       let errorMessage = 'Nie udało się pobrać lokalizacji';
       let permissionDenied = false;
+      let permStatus: 'granted' | 'denied' | 'prompt' = 'prompt';
 
       if (error?.message?.includes('denied') || error?.message?.includes('permission')) {
-        errorMessage = 'Dostęp do lokalizacji został zablokowany';
+        errorMessage = 'Dostęp do lokalizacji został zablokowany. Włącz go w ustawieniach telefonu.';
         permissionDenied = true;
+        permStatus = 'denied';
       } else if (error?.message?.includes('unavailable')) {
         errorMessage = 'Informacja o lokalizacji jest niedostępna';
       } else if (error?.message?.includes('timeout')) {
@@ -125,6 +176,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
         error: errorMessage,
         loading: false,
         permissionDenied,
+        permissionStatus: permStatus,
       }));
     }
   }, [enableHighAccuracy, timeout, maximumAge]);
@@ -157,13 +209,15 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
           console.warn('Failed to cache location:', e);
         }
 
-        setState({
+        setState(prev => ({
+          ...prev,
           latitude,
           longitude,
           error: null,
           loading: false,
           permissionDenied: false,
-        });
+          permissionStatus: 'granted',
+        }));
       },
       (error) => {
         let errorMessage = 'Nie udało się pobrać lokalizacji';
@@ -187,6 +241,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
           error: errorMessage,
           loading: false,
           permissionDenied,
+          permissionStatus: permissionDenied ? 'denied' : prev.permissionStatus,
         }));
       },
       {
@@ -208,20 +263,21 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
 
   // Auto-request on mount if enabled
   useEffect(() => {
-    if (autoRequest && !state.latitude && !state.longitude) {
+    if (autoRequest && state.initialized && !state.latitude && !state.longitude) {
       requestLocation();
     }
-  }, [autoRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [autoRequest, state.initialized]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearLocation = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
-    setState({
+    setState(prev => ({
+      ...prev,
       latitude: null,
       longitude: null,
       error: null,
       loading: false,
       permissionDenied: false,
-    });
+    }));
   }, []);
 
   const setManualLocation = useCallback((latitude: number, longitude: number) => {
@@ -235,31 +291,62 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
       console.warn('Failed to cache manual location:', e);
     }
 
-    setState({
+    setState(prev => ({
+      ...prev,
       latitude,
       longitude,
       error: null,
       loading: false,
       permissionDenied: false,
-    });
+    }));
   }, []);
 
-  // Check if location prompt was already shown this session
-  const wasPromptShown = useCallback(() => {
-    try {
-      return sessionStorage.getItem(SESSION_PROMPTED_KEY) === 'true';
-    } catch {
-      return false;
+  // Determine if we should show location prompt
+  // On native: only show if no cached location AND permission is not granted
+  // On web: only show once per session (using sessionStorage)
+  const shouldShowPrompt = useCallback(() => {
+    if (!state.initialized) return false;
+    
+    // Already have location - don't show
+    if (state.latitude !== null && state.longitude !== null) return false;
+
+    if (isNative) {
+      // On native: show only if permission is not granted (denied or prompt)
+      // If permission is granted but no location, they need to request it
+      return state.permissionStatus !== 'granted';
+    } else {
+      // On web: use sessionStorage to show only once per session
+      try {
+        return sessionStorage.getItem('location_prompt_shown') !== 'true';
+      } catch {
+        return true;
+      }
     }
-  }, []);
+  }, [state.initialized, state.latitude, state.longitude, state.permissionStatus, isNative]);
 
   const markPromptShown = useCallback(() => {
-    try {
-      sessionStorage.setItem(SESSION_PROMPTED_KEY, 'true');
-    } catch {
-      // Ignore storage errors
+    if (!isNative) {
+      try {
+        sessionStorage.setItem('location_prompt_shown', 'true');
+      } catch {
+        // Ignore storage errors
+      }
     }
-  }, []);
+  }, [isNative]);
+
+  // Re-check permission status (useful when user returns from settings)
+  const recheckPermission = useCallback(async () => {
+    if (isNative) {
+      const permStatus = await checkNativePermission();
+      setState(prev => ({
+        ...prev,
+        permissionStatus: permStatus,
+        permissionDenied: permStatus === 'denied',
+      }));
+      return permStatus;
+    }
+    return 'unknown';
+  }, [isNative, checkNativePermission]);
 
   return {
     ...state,
@@ -268,7 +355,8 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     clearLocation,
     setManualLocation,
     hasLocation: state.latitude !== null && state.longitude !== null,
-    wasPromptShown,
+    shouldShowPrompt,
     markPromptShown,
+    recheckPermission,
   };
 }

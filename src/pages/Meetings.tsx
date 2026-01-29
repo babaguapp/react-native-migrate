@@ -389,12 +389,12 @@ export default function Meetings() {
 
         {/* Floating buttons */}
         <div 
-          className={`fixed bottom-24 right-0 flex flex-col gap-2 transition-opacity duration-200 ${
+          className={`fixed bottom-24 right-2 flex flex-col items-end gap-2 transition-opacity duration-200 ${
             showFloatingButtons ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         >
           <Button 
-            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full w-14 h-14 p-0" 
+            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full w-14 h-14 p-0 mr-[-8px]" 
             onClick={() => navigate('/map')}
           >
             <MapIcon className="w-9 h-9" />

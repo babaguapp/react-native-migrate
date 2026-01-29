@@ -15,6 +15,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { MeetingChat } from "@/components/meetings/MeetingChat";
 import { notifyJoinRequest, notifyParticipantLeft, notifyMeetingCancelled, notifyMeetingUpdated, notifyBecameOrganizer, notifyOrganizerChanged, notifyRemovedFromMeeting } from "@/lib/notifications";
 import { getActivityImage } from "@/lib/activityImages";
+import { usePhoneVerification } from "@/hooks/usePhoneVerification";
+import { PhoneVerificationModal } from "@/components/phone/PhoneVerificationModal";
 interface Participant {
   user_id: string;
   status: string;
@@ -64,12 +66,15 @@ const MeetingDetails = () => {
   const {
     user
   } = useAuth();
+  const { needsVerification, refetch: refetchVerification } = usePhoneVerification();
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [meeting, setMeeting] = useState<MeetingDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
+  const [pendingJoinAction, setPendingJoinAction] = useState(false);
   const isCreator = user?.id === meeting?.creator_id;
   const confirmedParticipants = meeting?.participants.filter(p => p.status === "accepted").length || 0;
   const pendingParticipants = meeting?.participants.filter(p => p.status === "pending").length || 0;
@@ -255,6 +260,19 @@ const MeetingDetails = () => {
     }
   };
   const handleJoinMeeting = async () => {
+    if (!meeting || !user) return;
+
+    // Check if phone verification is needed
+    if (needsVerification) {
+      setPendingJoinAction(true);
+      setShowPhoneModal(true);
+      return;
+    }
+
+    await performJoinMeeting();
+  };
+
+  const performJoinMeeting = async () => {
     if (!meeting || !user) return;
     try {
       const {
@@ -717,6 +735,21 @@ const MeetingDetails = () => {
           </div>
         </div>
       </div>
+
+      <PhoneVerificationModal
+        open={showPhoneModal}
+        onOpenChange={(open) => {
+          setShowPhoneModal(open);
+          if (!open) setPendingJoinAction(false);
+        }}
+        onVerified={() => {
+          refetchVerification();
+          if (pendingJoinAction) {
+            setPendingJoinAction(false);
+            performJoinMeeting();
+          }
+        }}
+      />
     </MobileLayout>;
 };
 export default MeetingDetails;

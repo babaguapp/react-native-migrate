@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw, MapPin, Map as MapIcon } from 'lucide-react';
+import { Search, RefreshCw, MapPin } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { MeetingCard } from '@/components/meetings/MeetingCard';
@@ -361,14 +361,8 @@ export default function Meetings() {
           </div>
         )}
 
-        {/* Floating buttons */}
-        <div className="fixed bottom-24 right-4 flex flex-col gap-2">
-          <Button 
-            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full w-12 h-12 p-0" 
-            onClick={() => navigate('/map')}
-          >
-            <MapIcon className="w-5 h-5" />
-          </Button>
+        {/* Floating button */}
+        <div className="fixed bottom-24 right-4">
           <Button 
             className="bg-secondary hover:bg-secondary/90 shadow-lg rounded-full px-6" 
             onClick={() => navigate('/search')}

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { Geolocation, Position } from '@capacitor/geolocation';
 
 interface GeolocationState {
@@ -60,18 +61,19 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
   }, []);
 
   // Load cached location and check permissions on mount
+  // On native: also auto-refresh location if permission is already granted
   useEffect(() => {
     const initialize = async () => {
       let cachedLat: number | null = null;
       let cachedLon: number | null = null;
 
-      // Load cached location
+      // Load cached location as immediate fallback
       try {
         const cached = localStorage.getItem(STORAGE_KEY);
         if (cached) {
           const { latitude, longitude, timestamp } = JSON.parse(cached);
           
-          // On native: location doesn't expire
+          // On native: location doesn't expire (just for initial display)
           // On web: expires after 30 minutes
           const isValid = isNative || (Date.now() - timestamp < LOCATION_EXPIRY_MS_WEB);
           
@@ -90,19 +92,117 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
         permStatus = await checkNativePermission();
       }
 
+      // Set initial state with cached location
       setState(prev => ({
         ...prev,
         latitude: cachedLat,
         longitude: cachedLon,
-        loading: false,
+        loading: isNative && permStatus === 'granted', // Keep loading if we'll auto-refresh
         initialized: true,
         permissionStatus: permStatus,
         permissionDenied: permStatus === 'denied',
       }));
+
+      // On native with granted permission: auto-refresh to get current location
+      if (isNative && permStatus === 'granted') {
+        try {
+          const position: Position = await Geolocation.getCurrentPosition({
+            enableHighAccuracy,
+            timeout,
+            maximumAge: 60000, // Accept location up to 1 minute old for quick startup
+          });
+
+          const { latitude, longitude } = position.coords;
+
+          // Update cache with fresh location
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+              latitude,
+              longitude,
+              timestamp: Date.now(),
+            }));
+          } catch (e) {
+            console.warn('Failed to cache location:', e);
+          }
+
+          setState(prev => ({
+            ...prev,
+            latitude,
+            longitude,
+            loading: false,
+            error: null,
+          }));
+        } catch (error: any) {
+          console.warn('Auto-refresh location failed, using cached:', error);
+          // Keep cached location, just stop loading
+          setState(prev => ({
+            ...prev,
+            loading: false,
+          }));
+        }
+      }
     };
 
     initialize();
-  }, [isNative, checkNativePermission]);
+  }, [isNative, checkNativePermission, enableHighAccuracy, timeout]);
+
+  // Refresh location when app resumes from background (native only)
+  useEffect(() => {
+    if (!isNative) return;
+
+    const refreshLocationOnResume = async () => {
+      const permStatus = await checkNativePermission();
+      
+      // Only refresh if permission is granted
+      if (permStatus !== 'granted') {
+        // Permission might have been revoked in settings
+        setState(prev => ({
+          ...prev,
+          permissionStatus: permStatus,
+          permissionDenied: permStatus === 'denied',
+        }));
+        return;
+      }
+
+      try {
+        const position: Position = await Geolocation.getCurrentPosition({
+          enableHighAccuracy,
+          timeout,
+          maximumAge: 60000,
+        });
+
+        const { latitude, longitude } = position.coords;
+
+        // Update cache
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            latitude,
+            longitude,
+            timestamp: Date.now(),
+          }));
+        } catch (e) {
+          console.warn('Failed to cache location:', e);
+        }
+
+        setState(prev => ({
+          ...prev,
+          latitude,
+          longitude,
+          permissionStatus: 'granted',
+          permissionDenied: false,
+        }));
+      } catch (error) {
+        console.warn('Failed to refresh location on resume:', error);
+      }
+    };
+
+    // Listen for app resume event
+    const listener = App.addListener('resume', refreshLocationOnResume);
+
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, [isNative, checkNativePermission, enableHighAccuracy, timeout]);
 
   // Native Capacitor geolocation
   const requestNativeLocation = useCallback(async () => {

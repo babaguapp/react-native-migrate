@@ -394,7 +394,7 @@ export default function Meetings() {
           }`}
         >
           <Button 
-            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full w-16 h-16 p-0" 
+            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full w-14 h-14 p-0" 
             onClick={() => navigate('/map')}
           >
             <MapIcon className="w-9 h-9" />

@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { RefreshCw, List, MapPin } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -13,7 +12,7 @@ import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons in React-Leaflet with Vite
+// Fix for default marker icons
 const DefaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -25,14 +24,6 @@ const DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
-
-// Custom user location icon
-const UserLocationIcon = L.divIcon({
-  className: 'user-location-marker',
-  html: `<div style="width: 16px; height: 16px; background: hsl(var(--primary)); border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
 
 interface MapMeeting {
   id: string;
@@ -49,19 +40,14 @@ interface MapMeeting {
   distance_km: number;
 }
 
-// Component to recenter map when user location changes
-function MapRecenter({ lat, lon }: { lat: number; lon: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView([lat, lon], map.getZoom());
-  }, [lat, lon, map]);
-  return null;
-}
-
 export default function MeetingsMap() {
   const [meetings, setMeetings] = useState<MapMeeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const markersRef = useRef<L.Marker[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { 
@@ -74,17 +60,103 @@ export default function MeetingsMap() {
 
   // Default center (Poland)
   const defaultCenter: [number, number] = [52.0693, 19.4803];
-  const mapCenter = useMemo<[number, number]>(() => 
-    hasLocation && latitude && longitude 
-      ? [latitude, longitude] 
-      : defaultCenter,
-    [hasLocation, latitude, longitude]
-  );
+
+  // Initialize map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    const center = hasLocation && latitude && longitude 
+      ? [latitude, longitude] as [number, number]
+      : defaultCenter;
+
+    const map = L.map(mapContainerRef.current).setView(center, hasLocation ? 11 : 6);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    mapRef.current = map;
+    setMapReady(true);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update map center when location changes
+  useEffect(() => {
+    if (!mapRef.current || !hasLocation || !latitude || !longitude) return;
+    mapRef.current.setView([latitude, longitude], 11);
+  }, [hasLocation, latitude, longitude]);
+
+  // Add user location marker
+  useEffect(() => {
+    if (!mapRef.current || !hasLocation || !latitude || !longitude) return;
+
+    const userIcon = L.divIcon({
+      className: 'user-location-marker',
+      html: `<div style="width: 16px; height: 16px; background: #3b82f6; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
+    });
+
+    const userMarker = L.marker([latitude, longitude], { icon: userIcon })
+      .addTo(mapRef.current)
+      .bindPopup('<span class="font-medium">Twoja lokalizacja</span>');
+
+    return () => {
+      userMarker.remove();
+    };
+  }, [hasLocation, latitude, longitude, mapReady]);
+
+  // Add meeting markers
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    // Add new markers
+    meetings.forEach(meeting => {
+      const popupContent = `
+        <div style="min-width: 180px;">
+          <h3 style="font-weight: bold; margin-bottom: 4px;">${meeting.activity_name}</h3>
+          <p style="font-size: 12px; color: #666; margin-bottom: 8px;">${meeting.category_name}</p>
+          <div style="font-size: 13px; line-height: 1.6;">
+            <p>📅 ${format(new Date(meeting.meeting_date), 'd MMM yyyy, HH:mm', { locale: pl })}</p>
+            <p>📍 ${meeting.address ? meeting.address.split(',')[0] : meeting.city}</p>
+            <p>👥 ${meeting.current_participants}/${meeting.max_participants}</p>
+            <p style="color: #666;">🚶 ${formatDistance(meeting.distance_km)}</p>
+          </div>
+          <button 
+            onclick="window.location.href='/meeting/${meeting.id}'"
+            style="width: 100%; margin-top: 12px; padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;"
+          >
+            Zobacz szczegóły
+          </button>
+        </div>
+      `;
+
+      const marker = L.marker([meeting.latitude, meeting.longitude])
+        .addTo(mapRef.current!)
+        .bindPopup(popupContent);
+
+      markersRef.current.push(marker);
+    });
+  }, [meetings, mapReady]);
+
+  const formatDistance = (km: number) => {
+    if (km < 1) return `${Math.round(km * 1000)} m`;
+    return `${Math.round(km)} km`;
+  };
 
   const fetchMeetings = async (lat: number, lon: number) => {
     setIsLoading(true);
     try {
-      // Get meetings within 100km radius
       const { data: radiusData, error: radiusError } = await supabase.rpc('get_meetings_within_radius', {
         user_lat: lat,
         user_lon: lon,
@@ -100,7 +172,6 @@ export default function MeetingsMap() {
         return;
       }
 
-      // Fetch detailed meeting data
       const { data: detailedMeetings, error: detailsError } = await supabase
         .from('meetings')
         .select(`
@@ -129,11 +200,10 @@ export default function MeetingsMap() {
 
       if (detailsError) throw detailsError;
 
-      // Merge distance data with detailed data
       const distanceMap = new Map((radiusData || []).map((m: any) => [m.id, m.distance_km]));
 
       const formattedMeetings: MapMeeting[] = (detailedMeetings || [])
-        .filter((m: any) => m.latitude && m.longitude) // Only meetings with coordinates
+        .filter((m: any) => m.latitude && m.longitude)
         .map((meeting: any) => ({
           id: meeting.id,
           activity_name: meeting.activities.name,
@@ -162,7 +232,6 @@ export default function MeetingsMap() {
     }
   };
 
-  // Check location and fetch meetings
   useEffect(() => {
     if (geoLoading) return;
     
@@ -182,13 +251,7 @@ export default function MeetingsMap() {
 
   const handleSkipLocation = () => {
     setShowLocationPrompt(false);
-    // Fetch all meetings for Poland center
     fetchMeetings(defaultCenter[0], defaultCenter[1]);
-  };
-
-  const formatDistance = (km: number) => {
-    if (km < 1) return `${Math.round(km * 1000)} m`;
-    return `${Math.round(km)} km`;
   };
 
   return (
@@ -229,92 +292,24 @@ export default function MeetingsMap() {
           </div>
         )}
 
-        {/* Map or loading state */}
-        {isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <RefreshCw className="w-8 h-8 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Ładowanie mapy...</p>
-          </div>
-        ) : (
-          <div className="flex-1 relative">
-            <MapContainer
-              center={mapCenter}
-              zoom={hasLocation ? 11 : 6}
-              className="h-full w-full z-0"
-              scrollWheelZoom={true}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              
-              {hasLocation && latitude && longitude && (
-                <MapRecenter lat={latitude} lon={longitude} />
-              )}
-
-              {/* User location marker */}
-              {hasLocation && latitude && longitude && (
-                <Marker 
-                  position={[latitude, longitude]}
-                  icon={UserLocationIcon}
-                >
-                  <Popup>
-                    <span className="font-medium">Twoja lokalizacja</span>
-                  </Popup>
-                </Marker>
-              )}
-
-              {/* Meeting markers */}
-              {meetings.map((meeting) => (
-                <Marker
-                  key={meeting.id}
-                  position={[meeting.latitude, meeting.longitude]}
-                >
-                  <Popup>
-                    <div className="min-w-[200px]">
-                      <h3 className="font-bold text-foreground mb-1">
-                        {meeting.activity_name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {meeting.category_name}
-                      </p>
-                      
-                      <div className="space-y-1 text-sm">
-                        <p>
-                          📅 {format(new Date(meeting.meeting_date), 'd MMM yyyy, HH:mm', { locale: pl })}
-                        </p>
-                        <p>
-                          📍 {meeting.address ? meeting.address.split(',')[0] : meeting.city}
-                        </p>
-                        <p>
-                          👥 {meeting.current_participants}/{meeting.max_participants}
-                        </p>
-                        <p className="text-muted-foreground">
-                          🚶 {formatDistance(meeting.distance_km)}
-                        </p>
-                      </div>
-                      
-                      <Button
-                        size="sm"
-                        className="w-full mt-3"
-                        onClick={() => navigate(`/meeting/${meeting.id}`)}
-                      >
-                        Zobacz szczegóły
-                      </Button>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
-
-            {/* Meeting count badge */}
-            <div className="absolute top-3 left-3 bg-card/90 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-lg z-[1000]">
-              <span className="text-sm font-medium">
-                {meetings.length} {meetings.length === 1 ? 'spotkanie' : 'spotkań'}
-              </span>
+        {/* Map */}
+        <div className="flex-1 relative">
+          {isLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-[1001]">
+              <RefreshCw className="w-8 h-8 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Ładowanie mapy...</p>
             </div>
+          )}
+          
+          <div ref={mapContainerRef} className="h-full w-full" />
+
+          {/* Meeting count badge */}
+          <div className="absolute top-3 left-3 bg-card/90 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-lg z-[1000]">
+            <span className="text-sm font-medium">
+              {meetings.length} {meetings.length === 1 ? 'spotkanie' : 'spotkań'}
+            </span>
           </div>
-        )}
+        </div>
       </div>
     </MobileLayout>
   );

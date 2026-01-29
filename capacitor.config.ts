@@ -31,7 +31,9 @@ const config: CapacitorConfig = {
     }
   },
   ios: {
-    contentInset: 'automatic'
+    contentInset: 'automatic',
+    // Deep link scheme
+    scheme: 'babagu'
   },
   android: {
     allowMixedContent: true
@@ -44,5 +46,9 @@ const config: CapacitorConfig = {
 // Push Notifications require additional setup:
 // iOS: Enable Push Notifications capability in Xcode
 // Android: Add google-services.json from Firebase Console
+
+// Deep Links:
+// iOS: URL scheme 'babagu://' is configured via trapeze.config.yaml
+// Android: Intent filter for 'babagu://' scheme is configured via trapeze.config.yaml
 
 export default config;

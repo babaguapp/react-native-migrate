@@ -12,20 +12,18 @@ import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import 'leaflet/dist/leaflet.css';
 
-// Category to emoji mapping
+// Category to emoji mapping (based on actual database categories)
 const categoryEmojis: Record<string, string> = {
   'sport': '⚽',
-  'muzyka': '🎵',
-  'sztuka': '🎨',
-  'jedzenie': '🍕',
-  'gry': '🎮',
-  'nauka': '📚',
-  'podróże': '✈️',
-  'zdrowie': '💪',
-  'imprezy': '🎉',
-  'wolontariat': '🤝',
-  'hobby': '🎯',
+  'gry i rozrywka': '🎮',
+  'hobby i zainteresowania': '🎯',
+  'impreza': '🎉',
   'kultura': '🎭',
+  'na luzie': '☕',
+  'podróże i wycieczki': '✈️',
+  'edukacja': '📚',
+  'wolontariat i społeczność': '🤝',
+  'zdrowie i wellness': '💪',
   'default': '📍'
 };
 
@@ -149,21 +147,47 @@ export default function MeetingsMap() {
 
     // Add new markers
     meetings.forEach(meeting => {
+      const emoji = getCategoryEmoji(meeting.category_name);
+      const formattedDate = format(new Date(meeting.meeting_date), 'd MMMM, HH:mm', { locale: pl });
+      const spotsLeft = meeting.max_participants - meeting.current_participants;
+      const spotsText = spotsLeft === 1 ? 'miejsce' : spotsLeft < 5 ? 'miejsca' : 'miejsc';
+      
       const popupContent = `
-        <div style="min-width: 180px;">
-          <h3 style="font-weight: bold; margin-bottom: 4px;">${meeting.activity_name}</h3>
-          <p style="font-size: 12px; color: #666; margin-bottom: 8px;">${meeting.category_name}</p>
-          <div style="font-size: 13px; line-height: 1.6;">
-            <p>📅 ${format(new Date(meeting.meeting_date), 'd MMM yyyy, HH:mm', { locale: pl })}</p>
-            <p>📍 ${meeting.address ? meeting.address.split(',')[0] : meeting.city}</p>
-            <p>👥 ${meeting.current_participants}/${meeting.max_participants}</p>
-            <p style="color: #666;">🚶 ${formatDistance(meeting.distance_km)}</p>
+        <div style="min-width: 220px; font-family: system-ui, -apple-system, sans-serif;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            <span style="font-size: 32px;">${emoji}</span>
+            <div>
+              <h3 style="font-weight: 700; font-size: 16px; margin: 0; color: #1a1a1a;">${meeting.activity_name}</h3>
+              <p style="font-size: 12px; color: #888; margin: 2px 0 0 0;">@${meeting.creator_username}</p>
+            </div>
           </div>
+          
+          <div style="background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span style="font-size: 14px;">📅</span>
+              <span style="font-size: 13px; color: #333; font-weight: 500;">${formattedDate}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 14px;">📍</span>
+              <span style="font-size: 13px; color: #333;">${meeting.address ? meeting.address.split(',')[0] : meeting.city}</span>
+            </div>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 14px;">👥</span>
+              <span style="font-size: 13px; color: #333;">${meeting.current_participants}/${meeting.max_participants}</span>
+            </div>
+            <span style="font-size: 12px; color: ${spotsLeft <= 2 ? '#e53e3e' : '#38a169'}; font-weight: 500;">
+              ${spotsLeft > 0 ? `Zostało ${spotsLeft} ${spotsText}` : 'Brak miejsc'}
+            </span>
+          </div>
+          
           <button 
             onclick="window.location.href='/meeting/${meeting.id}'"
-            style="width: 100%; margin-top: 12px; padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;"
+            style="width: 100%; padding: 10px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;"
           >
-            Zobacz szczegóły
+            Dołącz do spotkania →
           </button>
         </div>
       `;

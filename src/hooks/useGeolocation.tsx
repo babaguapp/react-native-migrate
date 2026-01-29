@@ -18,6 +18,7 @@ interface UseGeolocationOptions {
 }
 
 const STORAGE_KEY = 'user_location';
+const SESSION_PROMPTED_KEY = 'location_prompt_shown';
 const LOCATION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 
 export function useGeolocation(options: UseGeolocationOptions = {}) {
@@ -243,6 +244,23 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     });
   }, []);
 
+  // Check if location prompt was already shown this session
+  const wasPromptShown = useCallback(() => {
+    try {
+      return sessionStorage.getItem(SESSION_PROMPTED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const markPromptShown = useCallback(() => {
+    try {
+      sessionStorage.setItem(SESSION_PROMPTED_KEY, 'true');
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
   return {
     ...state,
     isNative,
@@ -250,5 +268,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     clearLocation,
     setManualLocation,
     hasLocation: state.latitude !== null && state.longitude !== null,
+    wasPromptShown,
+    markPromptShown,
   };
 }

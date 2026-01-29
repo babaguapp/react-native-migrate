@@ -37,7 +37,9 @@ export default function Meetings() {
     setManualLocation,
     requestLocation,
     loading: geoLoading,
-    permissionDenied
+    permissionDenied,
+    wasPromptShown,
+    markPromptShown
   } = useGeolocation();
 
   const requestNotificationPermission = async () => {
@@ -213,9 +215,13 @@ export default function Meetings() {
     if (hasLocation && latitude && longitude) {
       // User already has location (from cache or previous grant) - fetch meetings
       fetchMeetingsWithLocation(latitude, longitude);
-    } else {
-      // No cached location - show prompt only once
+    } else if (!wasPromptShown()) {
+      // No cached location and prompt not shown this session - show it
       setShowLocationPrompt(true);
+      markPromptShown();
+    } else {
+      // Prompt was already shown this session, just fetch all meetings
+      fetchAllMeetings();
     }
   }, [geoLoading, hasLocation, latitude, longitude, locationChecked]);
 

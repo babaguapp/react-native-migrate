@@ -43,7 +43,7 @@ export function BottomNavigation() {
         <Map className="w-6 h-6" />
       </button>
 
-      <div className="max-w-md mx-auto flex items-center justify-around py-2">
+      <div className="max-w-md mx-auto grid grid-cols-5 items-center py-2">
         {/* First two items */}
         {navItems.slice(0, 2).map((item) => {
           const isActive = location.pathname === item.path;
@@ -54,7 +54,7 @@ export function BottomNavigation() {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                'flex flex-col items-center gap-1 px-3 py-2 min-w-[70px] transition-colors relative',
+                'flex flex-col items-center gap-1 py-2 transition-colors relative',
                 isActive ? 'text-secondary' : 'text-muted-foreground'
               )}
             >
@@ -75,8 +75,13 @@ export function BottomNavigation() {
           );
         })}
 
-        {/* Spacer for the floating button */}
-        <div className="min-w-[70px]" />
+        {/* Center spacer for floating button */}
+        <div className="flex flex-col items-center gap-1 py-2">
+          <div className="w-6 h-6" />
+          <span className="text-[10px] font-medium leading-tight text-center text-muted-foreground">
+            Mapa
+          </span>
+        </div>
 
         {/* Last two items */}
         {navItems.slice(2).map((item) => {
@@ -88,7 +93,7 @@ export function BottomNavigation() {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                'flex flex-col items-center gap-1 px-3 py-2 min-w-[70px] transition-colors relative',
+                'flex flex-col items-center gap-1 py-2 transition-colors relative',
                 isActive ? 'text-secondary' : 'text-muted-foreground'
               )}
             >

@@ -79,8 +79,9 @@ export default function MeetingsMap() {
     hasLocation, 
     setManualLocation,
     loading: geoLoading,
-    wasPromptShown,
-    markPromptShown
+    shouldShowPrompt,
+    markPromptShown,
+    initialized: geoInitialized
   } = useGeolocation();
 
   // Default center (Poland)
@@ -287,20 +288,21 @@ export default function MeetingsMap() {
   };
 
   useEffect(() => {
-    if (geoLoading) return;
+    // Wait for initialization
+    if (!geoInitialized || geoLoading) return;
     
     if (hasLocation && latitude && longitude) {
       fetchMeetings(latitude, longitude);
-    } else if (!wasPromptShown()) {
-      // Show prompt only if not shown this session
+    } else if (shouldShowPrompt()) {
+      // Show prompt only if needed
       setShowLocationPrompt(true);
       markPromptShown();
       setIsLoading(false);
     } else {
-      // Prompt already shown, fetch from default center
+      // Don't need to show prompt, fetch from default center
       fetchMeetings(defaultCenter[0], defaultCenter[1]);
     }
-  }, [geoLoading, hasLocation, latitude, longitude]);
+  }, [geoInitialized, geoLoading, hasLocation, latitude, longitude]);
 
   const handleLocationSet = (lat: number, lon: number) => {
     setManualLocation(lat, lon);

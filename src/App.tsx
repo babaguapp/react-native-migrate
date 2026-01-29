@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PushNotificationHandler } from "@/components/PushNotificationHandler";
 import Auth from "./pages/Auth";
 import Meetings from "./pages/Meetings";
+import MeetingsMap from "./pages/MeetingsMap";
 import CreateMeeting from "./pages/CreateMeeting";
 import MeetingDetails from "./pages/MeetingDetails";
 import MeetingCandidates from "./pages/MeetingCandidates";
@@ -41,6 +42,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Meetings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/map"
+              element={
+                <ProtectedRoute>
+                  <MeetingsMap />
                 </ProtectedRoute>
               }
             />

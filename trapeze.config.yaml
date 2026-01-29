@@ -21,6 +21,12 @@ platforms:
               - NSCameraUsageDescription: BaBaGu needs camera access for profile photos.
               - NSPhotoLibraryUsageDescription: BaBaGu needs photo library access for profile photos.
               
+              # Deep link URL scheme
+              - CFBundleURLTypes:
+                - CFBundleURLSchemes:
+                  - babagu
+                - CFBundleURLName: com.websko.babagu
+              
   android:
     manifest:
       - file: AndroidManifest.xml
@@ -32,3 +38,12 @@ platforms:
           - <uses-permission android:name="android.permission.CAMERA" />
           - <uses-feature android:name="android.hardware.camera" android:required="false" />
           - <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+      - file: AndroidManifest.xml
+        target: manifest/application/activity
+        inject:
+          - <intent-filter>
+              <action android:name="android.intent.action.VIEW" />
+              <category android:name="android.intent.category.DEFAULT" />
+              <category android:name="android.intent.category.BROWSABLE" />
+              <data android:scheme="babagu" />
+            </intent-filter>

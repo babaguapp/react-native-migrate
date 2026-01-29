@@ -52,7 +52,17 @@ export default function VerifyEmail() {
   };
 
   const handleContinue = () => {
-    navigate('/meetings');
+    // Try deep link first for native app
+    const deepLinkUrl = 'babagu://meetings';
+    const webFallbackUrl = '/meetings';
+    
+    // Try to open deep link
+    window.location.href = deepLinkUrl;
+    
+    // Fallback to web navigation after a short delay if deep link doesn't work
+    setTimeout(() => {
+      navigate(webFallbackUrl);
+    }, 1500);
   };
 
   const handleResendEmail = async () => {

@@ -78,7 +78,9 @@ export default function MeetingsMap() {
     longitude, 
     hasLocation, 
     setManualLocation,
-    loading: geoLoading 
+    loading: geoLoading,
+    wasPromptShown,
+    markPromptShown
   } = useGeolocation();
 
   // Default center (Poland)
@@ -289,9 +291,14 @@ export default function MeetingsMap() {
     
     if (hasLocation && latitude && longitude) {
       fetchMeetings(latitude, longitude);
-    } else {
+    } else if (!wasPromptShown()) {
+      // Show prompt only if not shown this session
       setShowLocationPrompt(true);
+      markPromptShown();
       setIsLoading(false);
+    } else {
+      // Prompt already shown, fetch from default center
+      fetchMeetings(defaultCenter[0], defaultCenter[1]);
     }
   }, [geoLoading, hasLocation, latitude, longitude]);
 

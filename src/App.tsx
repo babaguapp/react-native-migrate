@@ -22,6 +22,7 @@ import About from "./pages/About";
 import Help from "./pages/Help";
 import Notifications from "./pages/Notifications";
 import Premium from "./pages/Premium";
+import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           <PushNotificationHandler />
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/" element={<Navigate to="/meetings" replace />} />
             <Route
               path="/meetings"

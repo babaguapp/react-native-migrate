@@ -16,6 +16,7 @@ import { pl } from 'date-fns/locale';
 import { CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 const registerSchema = z.object({
   full_name: z.string().min(2, 'Imię i nazwisko jest wymagane'),
@@ -61,9 +62,8 @@ export default function Auth() {
       bio: null,
     });
 
-    setIsSubmitting(false);
-
     if (error) {
+      setIsSubmitting(false);
       toast({
         title: 'Błąd rejestracji',
         description: error.message === 'User already registered' 
@@ -74,9 +74,26 @@ export default function Auth() {
       return;
     }
 
+    // Send verification email
+    try {
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-verification-email', {});
+      
+      if (emailError) {
+        console.error('Error sending verification email:', emailError);
+      } else if (emailData?.error) {
+        console.error('Error sending verification email:', emailData.error);
+      } else {
+        console.log('Verification email sent successfully');
+      }
+    } catch (emailErr) {
+      console.error('Error calling send-verification-email:', emailErr);
+    }
+
+    setIsSubmitting(false);
+
     toast({
       title: 'Konto utworzone!',
-      description: 'Witamy w BaBaGu!',
+      description: 'Sprawdź swoją skrzynkę e-mail, aby potwierdzić adres.',
     });
     navigate('/meetings');
   };

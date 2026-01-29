@@ -158,6 +158,36 @@ export type Database = {
         }
         Relationships: []
       }
+      email_verification_tokens: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          token: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          token: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       meeting_participants: {
         Row: {
           id: string
@@ -365,6 +395,8 @@ export type Database = {
           birth_date: string
           created_at: string
           email: string
+          email_verified: boolean
+          email_verified_at: string | null
           full_name: string
           gender: string
           id: string
@@ -384,6 +416,8 @@ export type Database = {
           birth_date: string
           created_at?: string
           email: string
+          email_verified?: boolean
+          email_verified_at?: string | null
           full_name: string
           gender: string
           id?: string
@@ -403,6 +437,8 @@ export type Database = {
           birth_date?: string
           created_at?: string
           email?: string
+          email_verified?: boolean
+          email_verified_at?: string | null
           full_name?: string
           gender?: string
           id?: string

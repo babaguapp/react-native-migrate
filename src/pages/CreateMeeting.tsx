@@ -37,6 +37,8 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { usePhoneVerification } from '@/hooks/usePhoneVerification';
+import { PhoneVerificationModal } from '@/components/phone/PhoneVerificationModal';
 
 interface Category {
   id: string;
@@ -69,6 +71,8 @@ export default function CreateMeeting() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { needsVerification, refetch: refetchVerification } = usePhoneVerification();
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
@@ -151,6 +155,12 @@ export default function CreateMeeting() {
         description: 'Musisz być zalogowany, aby utworzyć spotkanie',
         variant: 'destructive',
       });
+      return;
+    }
+
+    // Check if phone verification is needed
+    if (needsVerification) {
+      setShowPhoneModal(true);
       return;
     }
 
@@ -427,6 +437,16 @@ export default function CreateMeeting() {
           </form>
         </Form>
       </div>
+
+      <PhoneVerificationModal
+        open={showPhoneModal}
+        onOpenChange={setShowPhoneModal}
+        onVerified={() => {
+          refetchVerification();
+          // Re-submit the form after verification
+          form.handleSubmit(onSubmit)();
+        }}
+      />
     </MobileLayout>
   );
 }

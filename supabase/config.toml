@@ -6,5 +6,8 @@ verify_jwt = false
 [functions.send-push-notification]
 verify_jwt = false
 
-[functions.geocode]
+[functions.send-sms-code]
+verify_jwt = false
+
+[functions.verify-sms-code]
 verify_jwt = false

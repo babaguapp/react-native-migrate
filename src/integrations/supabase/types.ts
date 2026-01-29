@@ -328,6 +328,36 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          phone_number: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone_number: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_number?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -340,6 +370,9 @@ export type Database = {
           id: string
           is_premium: boolean
           is_verified: boolean
+          phone_number: string | null
+          phone_verified: boolean
+          phone_verified_at: string | null
           points: number
           updated_at: string
           user_id: string
@@ -356,6 +389,9 @@ export type Database = {
           id?: string
           is_premium?: boolean
           is_verified?: boolean
+          phone_number?: string | null
+          phone_verified?: boolean
+          phone_verified_at?: string | null
           points?: number
           updated_at?: string
           user_id: string
@@ -372,6 +408,9 @@ export type Database = {
           id?: string
           is_premium?: boolean
           is_verified?: boolean
+          phone_number?: string | null
+          phone_verified?: boolean
+          phone_verified_at?: string | null
           points?: number
           updated_at?: string
           user_id?: string

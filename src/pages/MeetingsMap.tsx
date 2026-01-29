@@ -12,18 +12,43 @@ import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons
-const DefaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+// Category to emoji mapping
+const categoryEmojis: Record<string, string> = {
+  'sport': '⚽',
+  'muzyka': '🎵',
+  'sztuka': '🎨',
+  'jedzenie': '🍕',
+  'gry': '🎮',
+  'nauka': '📚',
+  'podróże': '✈️',
+  'zdrowie': '💪',
+  'imprezy': '🎉',
+  'wolontariat': '🤝',
+  'hobby': '🎯',
+  'kultura': '🎭',
+  'default': '📍'
+};
 
-L.Marker.prototype.options.icon = DefaultIcon;
+const getCategoryEmoji = (categoryName: string): string => {
+  const normalized = categoryName.toLowerCase();
+  for (const [key, emoji] of Object.entries(categoryEmojis)) {
+    if (normalized.includes(key)) {
+      return emoji;
+    }
+  }
+  return categoryEmojis.default;
+};
+
+const createEmojiIcon = (categoryName: string) => {
+  const emoji = getCategoryEmoji(categoryName);
+  return L.divIcon({
+    className: 'emoji-marker',
+    html: `<div style="font-size: 28px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">${emoji}</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20],
+  });
+};
 
 interface MapMeeting {
   id: string;
@@ -71,8 +96,10 @@ export default function MeetingsMap() {
 
     const map = L.map(mapContainerRef.current).setView(center, hasLocation ? 11 : 6);
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    // Using CartoDB Positron for a cleaner, less technical look
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      maxZoom: 19
     }).addTo(map);
 
     mapRef.current = map;
@@ -141,7 +168,8 @@ export default function MeetingsMap() {
         </div>
       `;
 
-      const marker = L.marker([meeting.latitude, meeting.longitude])
+      const emojiIcon = createEmojiIcon(meeting.category_name);
+      const marker = L.marker([meeting.latitude, meeting.longitude], { icon: emojiIcon })
         .addTo(mapRef.current!)
         .bindPopup(popupContent);
 

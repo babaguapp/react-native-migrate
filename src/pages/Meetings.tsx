@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, RefreshCw, MapPin, Map as MapIcon } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -28,6 +28,8 @@ export default function Meetings() {
   const [isLoading, setIsLoading] = useState(true);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [locationChecked, setLocationChecked] = useState(false);
+  const [showFloatingButtons, setShowFloatingButtons] = useState(true);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { 
@@ -42,6 +44,30 @@ export default function Meetings() {
     markPromptShown,
     initialized: geoInitialized
   } = useGeolocation();
+
+  // Handle scroll to hide/show floating buttons
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowFloatingButtons(false);
+      
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      scrollTimeoutRef.current = setTimeout(() => {
+        setShowFloatingButtons(true);
+      }, 300);
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const requestNotificationPermission = async () => {
     // In native (Capacitor) builds, use the PushNotifications plugin flow.
@@ -362,20 +388,23 @@ export default function Meetings() {
         )}
 
         {/* Floating buttons */}
-        <div className="fixed bottom-24 right-4 flex flex-col gap-2">
+        <div 
+          className={`fixed bottom-24 right-4 flex flex-col gap-2 transition-opacity duration-200 ${
+            showFloatingButtons ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+        >
+          <Button 
+            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full w-12 h-12 p-0" 
+            onClick={() => navigate('/map')}
+          >
+            <MapIcon className="w-6 h-6" />
+          </Button>
           <Button 
             className="bg-secondary hover:bg-secondary/90 shadow-lg rounded-full px-6" 
             onClick={() => navigate('/search')}
           >
             <Search className="w-5 h-5 mr-2" />
             Szukaj
-          </Button>
-          <Button 
-            className="bg-primary hover:bg-primary/90 shadow-lg rounded-full px-6" 
-            onClick={() => navigate('/map')}
-          >
-            <MapIcon className="w-6 h-6 mr-2" />
-            Mapa
           </Button>
         </div>
       </div>

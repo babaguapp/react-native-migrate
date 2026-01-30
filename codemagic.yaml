@@ -11,7 +11,7 @@ workflows:
     max_build_duration: 60
     
     environment:
-      node: 20
+      node: 22
       java: 17
       groups:
         - android_signing  # Optional: Configure in Codemagic UI for release signing
@@ -85,7 +85,7 @@ workflows:
       app_store_connect: BaBaGu_ASC_API  # Configure this integration in Codemagic UI
     
     environment:
-      node: 20
+      node: 22
       xcode: latest
       cocoapods: default
       vars:
@@ -167,7 +167,7 @@ workflows:
       app_store_connect: BaBaGu_ASC_API
     
     environment:
-      node: 20
+      node: 22
       java: 17
       xcode: latest
       cocoapods: default

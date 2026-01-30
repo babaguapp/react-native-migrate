@@ -112,36 +112,29 @@ workflows:
           include: true
     
     scripts:
-      - name: Use Node.js 22 (required by Capacitor CLI)
+      - name: Setup Node 22 + Build + Sync Capacitor + CocoaPods
         script: |
           set -e
+          
+          # Install and use Node.js 22
           export NVM_DIR="$HOME/.nvm"
           mkdir -p "$NVM_DIR"
           curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
           . "$NVM_DIR/nvm.sh"
           nvm install 22
           nvm use 22
-          node -v
-          npm -v
-
-      - name: Install npm dependencies
-        script: |
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          
+          # Install dependencies and build
           npm install
-      
-      - name: Build web assets
-        script: |
           npm run build
-      
-      - name: Add iOS platform
-        script: |
+          
+          # Add iOS platform and sync
           npx cap add ios || true
-      
-      - name: Sync Capacitor
-        script: |
           npx cap sync ios
-      
-      - name: Install CocoaPods dependencies
-        script: |
+          
+          # Install CocoaPods
           cd ios/App
           pod install
       

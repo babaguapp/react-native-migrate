@@ -23,10 +23,10 @@ platforms:
     manifest:
       - file: AndroidManifest.xml
         target: manifest/application/activity
-        inject:
-          - <intent-filter>
-              <action android:name="android.intent.action.VIEW" />
-              <category android:name="android.intent.category.DEFAULT" />
-              <category android:name="android.intent.category.BROWSABLE" />
-              <data android:scheme="babagu" />
-            </intent-filter>
+        inject: |
+          <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="babagu" />
+          </intent-filter>

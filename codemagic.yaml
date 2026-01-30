@@ -112,7 +112,7 @@ workflows:
           include: true
     
     scripts:
-      - name: Setup Node 22 + Build + Sync Capacitor + CocoaPods
+      - name: Setup Node 22 + Build + Sync Capacitor
         script: |
           set -e
           
@@ -130,13 +130,9 @@ workflows:
           npm install
           npm run build
           
-          # Add iOS platform and sync
+          # Add iOS platform and sync (Capacitor 8 uses Swift Package Manager, no CocoaPods needed)
           npx cap add ios || true
           npx cap sync ios
-          
-          # Install CocoaPods
-          cd ios/App
-          pod install
       
       - name: Set up code signing
         script: |

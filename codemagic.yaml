@@ -1,0 +1,254 @@
+# Codemagic CI/CD Configuration for BaBaGu (Capacitor)
+# Documentation: https://docs.codemagic.io/yaml-basic-configuration/yaml-getting-started/
+
+workflows:
+  # ============================================
+  # ANDROID BUILD WORKFLOW
+  # ============================================
+  android-workflow:
+    name: Android Build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - android_signing  # Optional: Configure in Codemagic UI for release signing
+      vars:
+        PACKAGE_NAME: "app.lovable.9fa4bfe56f35495ebe00dc4071dec7d0"
+    
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
+      
+      - name: Build web assets
+        script: |
+          npm run build
+      
+      - name: Add Android platform
+        script: |
+          npx cap add android || true
+      
+      - name: Sync Capacitor
+        script: |
+          npx cap sync android
+      
+      - name: Set Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+      
+      - name: Build Android APK (debug)
+        script: |
+          cd android
+          ./gradlew assembleDebug
+      
+      - name: Build Android AAB (release)
+        script: |
+          cd android
+          if [ -n "$CM_KEYSTORE" ]; then
+            # Release build with signing
+            ./gradlew bundleRelease
+          else
+            echo "No keystore configured, skipping release build"
+          fi
+    
+    artifacts:
+      - android/app/build/outputs/apk/**/*.apk
+      - android/app/build/outputs/bundle/**/*.aab
+    
+    publishing:
+      email:
+        recipients:
+          - user@example.com  # Change to your email
+        notify:
+          success: true
+          failure: true
+
+  # ============================================
+  # iOS BUILD WORKFLOW
+  # ============================================
+  ios-workflow:
+    name: iOS Build
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    
+    integrations:
+      app_store_connect: BaBaGu_ASC_API  # Configure this integration in Codemagic UI
+    
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "app.lovable.9fa4bfe56f35495ebe00dc4071dec7d0"
+        APP_STORE_APP_ID: "YOUR_APP_STORE_APP_ID"  # Replace after creating app in App Store Connect
+    
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
+      
+      - name: Build web assets
+        script: |
+          npm run build
+      
+      - name: Add iOS platform
+        script: |
+          npx cap add ios || true
+      
+      - name: Sync Capacitor
+        script: |
+          npx cap sync ios
+      
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios/App
+          pod install
+      
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+      
+      - name: Increment build number
+        script: |
+          cd ios/App
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" || echo "0")
+          agvtool new-version -all $((LATEST_BUILD_NUMBER + 1))
+      
+      - name: Build iOS IPA
+        script: |
+          cd ios/App
+          xcode-project build-ipa \
+            --workspace "App.xcworkspace" \
+            --scheme "App" \
+            --config "Release"
+    
+    artifacts:
+      - ios/App/build/ios/ipa/*.ipa
+      - ios/App/build/ios/ipa/*.dSYM.zip
+    
+    publishing:
+      email:
+        recipients:
+          - user@example.com  # Change to your email
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false  # Set to true to auto-submit to TestFlight
+        submit_to_app_store: false
+
+  # ============================================
+  # COMBINED BUILD (Android + iOS)
+  # ============================================
+  combined-workflow:
+    name: Build All Platforms
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    
+    integrations:
+      app_store_connect: BaBaGu_ASC_API
+    
+    environment:
+      node: 20
+      java: 17
+      xcode: latest
+      cocoapods: default
+      groups:
+        - android_signing
+      vars:
+        BUNDLE_ID: "app.lovable.9fa4bfe56f35495ebe00dc4071dec7d0"
+    
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+    
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
+      
+      - name: Build web assets
+        script: |
+          npm run build
+      
+      # Android Build
+      - name: Add Android platform
+        script: |
+          npx cap add android || true
+      
+      - name: Sync Capacitor Android
+        script: |
+          npx cap sync android
+      
+      - name: Set Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+      
+      - name: Build Android
+        script: |
+          cd android
+          ./gradlew assembleDebug
+          if [ -n "$CM_KEYSTORE" ]; then
+            ./gradlew bundleRelease
+          fi
+      
+      # iOS Build
+      - name: Add iOS platform
+        script: |
+          npx cap add ios || true
+      
+      - name: Sync Capacitor iOS
+        script: |
+          npx cap sync ios
+      
+      - name: Install CocoaPods
+        script: |
+          cd ios/App
+          pod install
+      
+      - name: Set up iOS code signing
+        script: |
+          xcode-project use-profiles
+      
+      - name: Build iOS IPA
+        script: |
+          cd ios/App
+          xcode-project build-ipa \
+            --workspace "App.xcworkspace" \
+            --scheme "App" \
+            --config "Release"
+    
+    artifacts:
+      - android/app/build/outputs/apk/**/*.apk
+      - android/app/build/outputs/bundle/**/*.aab
+      - ios/App/build/ios/ipa/*.ipa
+      - ios/App/build/ios/ipa/*.dSYM.zip
+    
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: true

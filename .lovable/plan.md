@@ -1,165 +1,127 @@
 
+# Plan: Konfiguracja Codemagic CI/CD dla BaBaGu
 
-# Mapa Spotkań z Precyzyjnym Wyborem Lokalizacji
+## Co zostanie stworzone
 
-## Problem
-Obecnie geocoding działa tylko na poziomie miasta (np. "Warszawa"), więc wszystkie spotkania z tego samego miasta mają identyczne współrzędne i nakładałyby się na mapie.
-
-## Rozwiązanie
-Dodanie możliwości wyboru konkretnego adresu lub miejsca przy tworzeniu spotkania, z autouzupełnianiem adresów.
+Plik `codemagic.yaml` w głównym katalogu projektu, który skonfiguruje automatyczne budowanie:
+- **Android**: APK (debug) i AAB (release dla Google Play)
+- **iOS**: IPA z automatycznym podpisywaniem przez App Store Connect API
 
 ---
 
-## Wizualizacja nowego formularza
+## Zawartość pliku codemagic.yaml
+
+Plik będzie zawierał:
+
+### 1. Workflow Android
+- Instalacja zależności Node.js (npm install)
+- Budowanie aplikacji web (npm run build)
+- Dodanie platformy Android (npx cap add android)
+- Synchronizacja Capacitor (npx cap sync android)
+- Budowanie APK/AAB przez Gradle
+- Publikowanie artefaktów
+
+### 2. Workflow iOS (z automatycznym podpisywaniem)
+- Instalacja zależności Node.js
+- Budowanie aplikacji web
+- Dodanie platformy iOS (npx cap add ios)
+- Synchronizacja Capacitor (npx cap sync ios)
+- Instalacja CocoaPods
+- **Automatyczne podpisywanie** przez App Store Connect API
+- Budowanie IPA przez xcodebuild
+- Publikowanie artefaktów
+
+---
+
+## Wymagana konfiguracja w Codemagic Dashboard
+
+Po dodaniu pliku do repozytorium, w ustawieniach aplikacji w Codemagic należy skonfigurować:
+
+### Dla iOS (automatyczne podpisywanie):
+1. **App Store Connect API Key** - plik .p8 z Apple Developer Portal
+2. **Key ID** - identyfikator klucza
+3. **Issuer ID** - identyfikator wydawcy
+
+### Dla Android (opcjonalnie dla Google Play):
+1. **Keystore file** - plik .jks/.keystore do podpisywania release
+2. **Keystore password**
+3. **Key alias i password**
+
+---
+
+## Zmienne środowiskowe używane w pliku
+
+| Zmienna | Opis | Gdzie ustawić |
+|---------|------|---------------|
+| `APP_STORE_CONNECT_KEY_IDENTIFIER` | Key ID z Apple | Codemagic → Settings |
+| `APP_STORE_CONNECT_ISSUER_ID` | Issuer ID z Apple | Codemagic → Settings |
+| `APP_STORE_CONNECT_PRIVATE_KEY` | Zawartość pliku .p8 | Codemagic → Settings |
+| `CM_KEYSTORE` | Keystore dla Android (base64) | Codemagic → Settings |
+| `CM_KEYSTORE_PASSWORD` | Hasło do keystore | Codemagic → Settings |
+| `CM_KEY_ALIAS` | Alias klucza | Codemagic → Settings |
+| `CM_KEY_PASSWORD` | Hasło klucza | Codemagic → Settings |
+
+---
+
+## Struktura pliku
 
 ```text
-+------------------------------------------+
-|  [<]  Utwórz spotkanie                   |
-+------------------------------------------+
-|                                          |
-|  Kategoria                               |
-|  [🎾 Sport                          ▼]  |
-|                                          |
-|  Aktywność                               |
-|  [Tenis                             ▼]  |
-|                                          |
-|  📍 Lokalizacja                          |
-|  [Hala sportowa Torwar, Warszawa    🔍] |
-|  +------------------------------------+  |
-|  | 📍 Hala Torwar, Łazienkowska 6a   |  |
-|  | 📍 Hala Sportowa, Wawelska 5      |  |
-|  | 📍 Park Skaryszewski, Warszawa    |  |
-|  +------------------------------------+  |
-|                                          |
-|  📅 Data spotkania                       |
-|  [15 lutego 2026                    📅] |
-|                                          |
-|  ...                                     |
-+------------------------------------------+
+codemagic.yaml
+├── workflows:
+│   ├── android-workflow
+│   │   ├── name: "Android Build"
+│   │   ├── instance_type: mac_mini_m2
+│   │   ├── environment (Node 20, Java 17)
+│   │   ├── scripts (install, build, cap sync, gradle)
+│   │   └── artifacts (APK, AAB)
+│   │
+│   └── ios-workflow
+│       ├── name: "iOS Build"
+│       ├── instance_type: mac_mini_m2
+│       ├── environment (Node 20, Xcode latest)
+│       ├── integrations: app_store_connect
+│       ├── scripts (install, build, cap sync, pod install, xcodebuild)
+│       └── artifacts (IPA)
 ```
 
 ---
 
-## Zakres zmian
+## Sekcja techniczna
 
-### 1. Baza danych
-Dodanie nowej kolumny `address` do tabeli `meetings`:
+### Kluczowe komendy w workflow:
 
-| Kolumna | Typ | Opis |
-|---------|-----|------|
-| `address` | TEXT (nullable) | Szczegółowy adres/nazwa miejsca |
-
-Pole `city` pozostaje jako backup i dla kompatybilności wstecznej.
-
-### 2. Nowy komponent - AddressAutocomplete
-Komponent wyszukiwania adresu z autouzupełnianiem, korzystający z Nominatim API (OpenStreetMap):
-
-| Cecha | Opis |
-|-------|------|
-| Wyszukiwanie | Minimum 3 znaki, debounce 300ms |
-| Sugestie | Lista rozwijana z propozycjami adresów |
-| Dane zwrotne | Pełny adres + współrzędne lat/lon |
-| Ograniczenie | Wyniki tylko z Polski |
-
-Plik: `src/components/location/AddressAutocomplete.tsx`
-
-### 3. Modyfikacja formularza CreateMeeting
-Zamiana prostego pola "Miasto" na komponent AddressAutocomplete:
-
-- Użytkownik wpisuje nazwę miejsca/adresu
-- Pojawiają się sugestie z Nominatim
-- Po wybraniu zapisujemy: adres, miasto (wyekstrahowane), lat, lon
-- Pole "Miasto" pozostaje ukryte ale wypełniane automatycznie
-
-### 4. Rozszerzenie Edge Function - geocode-address
-Nowa funkcja lub rozszerzenie istniejącej do wyszukiwania adresów (nie tylko miast):
-
-```text
-Request:  { query: "Hala Torwar Warszawa" }
-Response: {
-  results: [
-    {
-      displayName: "Hala Torwar, Łazienkowska 6a, Warszawa",
-      city: "Warszawa",
-      latitude: 52.2167,
-      longitude: 21.0333
-    },
-    ...
-  ]
-}
+**Android:**
+```bash
+npm install
+npm run build
+npx cap add android || true
+npx cap sync android
+cd android && ./gradlew assembleRelease
 ```
 
-### 5. Aktualizacja wyświetlania
-Na karcie spotkania i stronie szczegółów pokazujemy:
-- Jeśli `address` istnieje → wyświetl adres
-- Jeśli tylko `city` → wyświetl miasto (kompatybilność wsteczna)
-
----
-
-## Struktura plików do utworzenia/modyfikacji
-
-| Plik | Akcja |
-|------|-------|
-| `src/components/location/AddressAutocomplete.tsx` | Nowy - komponent autocomplete |
-| `src/pages/CreateMeeting.tsx` | Modyfikacja - integracja autocomplete |
-| `supabase/functions/geocode/index.ts` | Modyfikacja - obsługa wyszukiwania adresów |
-| Migracja SQL | Nowa - dodanie kolumny `address` |
-| `src/components/meetings/MeetingCard.tsx` | Modyfikacja - wyświetlanie adresu |
-| `src/pages/MeetingDetails.tsx` | Modyfikacja - wyświetlanie adresu |
-
----
-
-## Szczegóły techniczne
-
-### Komponent AddressAutocomplete
-
-```text
-Props:
-├── value: string (aktualny tekst)
-├── onChange: (value: string) => void
-├── onSelect: (result: AddressResult) => void
-└── placeholder?: string
-
-State:
-├── suggestions: AddressResult[]
-├── isLoading: boolean
-├── showDropdown: boolean
-└── selectedIndex: number (nawigacja klawiaturą)
-
-AddressResult:
-├── displayName: string
-├── city: string
-├── latitude: number
-└── longitude: number
+**iOS:**
+```bash
+npm install
+npm run build
+npx cap add ios || true
+npx cap sync ios
+cd ios/App && pod install
+xcode-project use-profiles
+xcode-project build-ipa --workspace "App.xcworkspace" --scheme "App"
 ```
 
-### Przepływ UX
-
-1. Użytkownik wpisuje tekst (min. 3 znaki)
-2. Po 300ms debounce → wywołanie API Nominatim
-3. Wyświetlenie listy sugestii (max 5)
-4. Kliknięcie lub Enter → wybór adresu
-5. Wypełnienie ukrytych pól: city, latitude, longitude
-6. Wyświetlenie wybranego adresu w input
-
-### Obsługa błędów
-
-- Brak wyników → "Nie znaleziono. Spróbuj inaczej"
-- Błąd API → Fallback do ręcznego wpisania miasta
-- Timeout → Retry z komunikatem
+### Automatyczne podpisywanie iOS:
+- Wykorzystuje **App Store Connect API** (nie wymaga .p12)
+- Codemagic automatycznie generuje certyfikaty i profile
+- Wymagane uprawnienia: Admin lub App Manager w App Store Connect
 
 ---
 
-## Korzyści
+## Po implementacji
 
-1. **Precyzyjne lokalizacje na mapie** - markery nie nakładają się
-2. **Lepsza informacja dla uczestników** - dokładny adres spotkania
-3. **Wsteczna kompatybilność** - istniejące spotkania nadal działają
-4. **Bez dodatkowych kosztów** - Nominatim jest darmowy
-
----
-
-## Plan realizacji mapy (po implementacji adresów)
-
-Po dodaniu precyzyjnych adresów, będziemy mogli zaimplementować mapę spotkań zgodnie z wcześniejszym planem, gdzie każde spotkanie będzie miało unikalne współrzędne.
-
+1. **Push pliku do GitHub** - wypchnij zmiany do repozytorium
+2. **Konfiguracja Codemagic**:
+   - Kliknij "Check for configuration file"
+   - Dodaj App Store Connect API credentials
+   - (Opcjonalnie) Dodaj Android keystore dla release builds
+3. **Uruchom build** - wybierz workflow i uruchom

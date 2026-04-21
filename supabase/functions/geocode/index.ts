@@ -74,24 +74,38 @@ serve(async (req) => {
 
     console.log(`Geocoding query: "${searchQuery}" (mode: ${isSearch ? 'search' : 'city'}) -> URL: ${nominatimUrl}`);
 
-    const response = await fetch(nominatimUrl, {
-      headers: {
-        'User-Agent': 'BaBaGu-App/1.0 (contact@babagu.app)',
-        'Accept-Language': 'pl',
-      },
-    });
+    // Retry with exponential backoff to handle Nominatim rate limiting (429)
+    let response: Response | null = null;
+    let lastStatus = 0;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+      }
+      response = await fetch(nominatimUrl, {
+        headers: {
+          'User-Agent': 'BaBaGu-App/1.0 (contact@babagu.app)',
+          'Accept-Language': 'pl',
+          'Referer': 'https://babagu.app',
+        },
+      });
+      lastStatus = response.status;
+      if (response.ok) break;
+      if (response.status !== 429 && response.status < 500) break;
+      console.warn(`Nominatim attempt ${attempt + 1} failed with ${response.status}, retrying...`);
+    }
 
-    if (!response.ok) {
-      console.error('Nominatim API error:', response.status, response.statusText);
+    if (!response || !response.ok) {
+      console.error('Nominatim API error after retries:', lastStatus);
+      // Return 200 with empty results so client doesn't break the UX flow
       return new Response(
         JSON.stringify({ 
           latitude: null, 
           longitude: null, 
           displayName: null, 
           results: [],
-          error: 'Geocoding service error' 
+          error: lastStatus === 429 ? 'Rate limit exceeded, try again' : 'Geocoding service error' 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 502 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
 

@@ -1,0 +1,1 @@
+UPDATE public.meetings SET latitude = 53.9282745, longitude = 14.4489030 WHERE id = '99e4cde2-2d15-4599-a267-01aeae231689' AND latitude IS NULL;

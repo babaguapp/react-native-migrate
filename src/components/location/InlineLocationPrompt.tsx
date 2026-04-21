@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Navigation, Search, X } from 'lucide-react';
+import { MapPin, Navigation, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -146,18 +146,28 @@ export function InlineLocationPrompt({ onLocationSet, onSkip }: InlineLocationPr
           <div className="space-y-3">
             {permissionDenied && (
               <div className="bg-muted p-3 rounded-lg text-sm text-muted-foreground space-y-2">
-                <p>Dostęp do GPS został zablokowany.</p>
+                <p className="font-medium text-foreground">Dostęp do GPS jest zablokowany</p>
+                <p className="text-xs">
+                  Android zapamiętał Twoją odmowę. Aby włączyć GPS:
+                </p>
+                <ol className="text-xs list-decimal list-inside space-y-1 pl-1">
+                  <li>Otwórz <strong>Ustawienia</strong> telefonu</li>
+                  <li>Aplikacje → <strong>BaBaGu</strong></li>
+                  <li>Uprawnienia → <strong>Lokalizacja</strong></li>
+                  <li>Wybierz <strong>"Zezwalaj"</strong></li>
+                  <li>Wróć do aplikacji i kliknij "Spróbuj ponownie"</li>
+                </ol>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleGpsRequest}
                   disabled={gpsLoading}
-                  className="w-full"
+                  className="w-full mt-2"
                 >
                   <Navigation className="h-4 w-4 mr-2" />
-                  {gpsLoading ? 'Próbuję ponownie...' : 'Spróbuj ponownie uzyskać dostęp'}
+                  {gpsLoading ? 'Sprawdzam...' : 'Spróbuj ponownie'}
                 </Button>
-                <p className="text-xs">Lub wprowadź miasto ręcznie:</p>
+                <p className="text-xs pt-1">Lub wprowadź miasto ręcznie poniżej:</p>
               </div>
             )}
             

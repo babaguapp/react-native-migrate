@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Navigation, Search, Settings as SettingsIcon } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
+import { MapPin, Navigation, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

@@ -4,12 +4,12 @@ const config: CapacitorConfig = {
   appId: 'com.websko.babagu',
   appName: 'BaBaGu',
   webDir: 'dist',
-  server: {
-    // Dla emulatora Android: 10.0.2.2 wskazuje na localhost hosta
-    // Dla fizycznego urządzenia: użyj swojego IP z sieci (np. 192.168.1.100)
-    url: 'http://10.0.2.2:8080',
-    cleartext: true
-  },
+  // server config disabled — apka używa wbudowanego kodu z dist/
+  // Aby włączyć hot-reload, odkomentuj poniższe i podaj IP komputera lub użyj `adb reverse tcp:8080 tcp:8080`
+  // server: {
+  //   url: 'http://10.0.2.2:8080',
+  //   cleartext: true
+  // },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,

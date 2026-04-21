@@ -242,15 +242,24 @@ export default function Meetings() {
     if (hasLocation && latitude && longitude) {
       // User already has location - fetch meetings
       fetchMeetingsWithLocation(latitude, longitude);
+    } else if (Capacitor.isNativePlatform() && !permissionDenied) {
+      // Native: automatycznie poproś o uprawnienie GPS (system pokaże dialog)
+      // Jeśli user odmówił wcześniej - permissionDenied=true i pokażemy prompt z instrukcją
+      requestLocation();
+      // Pokaż też inline prompt jako fallback (manualne miasto)
+      if (shouldShowPrompt()) {
+        setShowLocationPrompt(true);
+        markPromptShown();
+      }
     } else if (shouldShowPrompt()) {
-      // No location and should show prompt
+      // Web lub denied: pokaż prompt
       setShowLocationPrompt(true);
       markPromptShown();
     } else {
       // Already prompted or has granted permission, fetch all meetings
       fetchAllMeetings();
     }
-  }, [geoInitialized, geoLoading, hasLocation, latitude, longitude, locationChecked]);
+  }, [geoInitialized, geoLoading, hasLocation, latitude, longitude, locationChecked, permissionDenied]);
 
   // Re-fetch when location changes
   useEffect(() => {

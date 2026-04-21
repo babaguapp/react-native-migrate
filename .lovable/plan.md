@@ -1,49 +1,46 @@
 
-# Plan: Aktualizacja Node.js do wersji 22 w Codemagic
 
-## Problem
+## Wgranie poprawki crasha na telefon
 
-Build zakończył się błędem:
-```
-[fatal] The Capacitor CLI requires NodeJS >=22.0.0
-```
+Zmiana w `src/components/PushNotificationHandler.tsx` (FIREBASE_CONFIGURED = false) jest już w kodzie, ale telefon nadal ma starą wersję APK. Trzeba zbudować, zsynchronizować i przeinstalować.
 
-Plik `codemagic.yaml` używa Node.js 20, ale Capacitor CLI w wersji 8.x wymaga minimum Node.js 22.
+### Kroki do wykonania w PowerShell
 
----
+```powershell
+# 1. Pobierz najnowsze zmiany z Lovable
+git pull
 
-## Co zostanie zmienione
+# 2. Zbuduj webową część apki (kompiluje TS → JS do folderu dist/)
+npm run build
 
-Zaktualizuję wersję Node.js z `20` na `22` we wszystkich trzech workflow:
+# 3. Skopiuj dist/ do natywnego projektu Android
+npx cap sync android
 
-| Workflow | Linia | Stara wartość | Nowa wartość |
-|----------|-------|---------------|--------------|
-| android-workflow | 14 | `node: 20` | `node: 22` |
-| ios-workflow | 88 | `node: 20` | `node: 22` |
-| combined-workflow | 170 | `node: 20` | `node: 22` |
-
----
-
-## Szczegóły techniczne
-
-Zmiana w pliku `codemagic.yaml`:
-
-```yaml
-# Przed (w każdym workflow):
-environment:
-  node: 20
-
-# Po:
-environment:
-  node: 22
+# 4. Zbuduj APK i zainstaluj na telefonie (telefon podłączony USB)
+cd android
+./gradlew installDebug
 ```
 
-Codemagic obsługuje Node.js 22 na maszynach `mac_mini_m2`, więc zmiana powinna zadziałać bez problemów.
+### Co się stanie
 
----
+- `npm run build` — Vite skompiluje React/TS do statycznych plików w `dist/`
+- `npx cap sync android` — Capacitor skopiuje `dist/` do `android/app/src/main/assets/public/` (to czyta WebView)
+- `./gradlew installDebug` — zbuduje APK i zainstaluje na podłączonym telefonie
 
-## Po implementacji
+### Po instalacji
 
-1. Build zostanie ponownie zsynchronizowany z GitHub
-2. Uruchom workflow ponownie w Codemagic
-3. Krok "Sync Capacitor" powinien teraz przejść pomyślnie
+Otwórz apkę BaBaGu, zaloguj się — **nie powinno być crasha**. Push notifications nie będą działać (są wyłączone), ale reszta apki tak.
+
+### Jeśli chcesz włączyć push w przyszłości
+
+Trzeba dodać `google-services.json` z Firebase Console do `android/app/`, a potem zmienić `FIREBASE_CONFIGURED = true` w `PushNotificationHandler.tsx` i powtórzyć kroki 2-4.
+
+### Zasada na przyszłość
+
+| Co zmieniłeś | Co musisz zrobić |
+|---|---|
+| Kod w `src/` (TS/React) | `npm run build` + `npx cap sync` + `./gradlew installDebug` |
+| `capacitor.config.ts` | `npx cap sync` + `./gradlew installDebug` |
+| Pliki natywne (`android/`) | tylko `./gradlew installDebug` |
+| `google-services.json` | tylko `./gradlew installDebug` |
+

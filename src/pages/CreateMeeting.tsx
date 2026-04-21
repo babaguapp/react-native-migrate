@@ -166,6 +166,23 @@ export default function CreateMeeting() {
 
     setIsLoading(true);
     try {
+      // Fallback: jeśli brak współrzędnych, spróbuj zgeokodować miasto teraz
+      let lat = values.latitude;
+      let lon = values.longitude;
+      if (lat == null || lon == null) {
+        try {
+          const { data: geo } = await supabase.functions.invoke('geocode', {
+            body: { query: values.city.trim(), mode: 'city' },
+          });
+          if (geo?.latitude && geo?.longitude) {
+            lat = geo.latitude;
+            lon = geo.longitude;
+          }
+        } catch (e) {
+          console.warn('Geocoding fallback failed:', e);
+        }
+      }
+
       const { error } = await supabase.from('meetings').insert({
         creator_id: user.id,
         activity_id: values.activity_id,
@@ -175,8 +192,8 @@ export default function CreateMeeting() {
         max_participants: values.max_participants,
         gender_preference: values.gender_preference,
         description: values.description?.trim() || null,
-        latitude: values.latitude,
-        longitude: values.longitude,
+        latitude: lat,
+        longitude: lon,
       });
 
       if (error) throw error;

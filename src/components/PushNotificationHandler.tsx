@@ -13,8 +13,11 @@ export function PushNotificationHandler() {
   useEffect(() => {
     if (!isNative) return;
 
-    if (user && !isRegistered) {
-      // Register for push notifications when user logs in
+    // Skip push registration if Firebase is not configured (no google-services.json)
+    // This prevents app crash when google-services.json is missing
+    const FIREBASE_CONFIGURED = false; // Set to true after adding google-services.json
+
+    if (FIREBASE_CONFIGURED && user && !isRegistered) {
       const timer = setTimeout(() => {
         registerPushNotifications(user.id);
       }, 1000);
